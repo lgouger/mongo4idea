@@ -16,33 +16,37 @@
 
 package org.codinjutsu.tools.mongo.view;
 
-import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.util.JSON;
 import org.apache.commons.io.IOUtils;
+import org.assertj.swing.data.TableCell;
+import org.assertj.swing.driver.BasicJTableCellReader;
+import org.assertj.swing.edt.GuiActionRunner;
+import org.assertj.swing.edt.GuiQuery;
+import org.assertj.swing.fixture.Containers;
+import org.assertj.swing.fixture.FrameFixture;
+import org.assertj.swing.fixture.JTableFixture;
 import org.bson.types.ObjectId;
-import org.codinjutsu.tools.mongo.view.model.JsonDataType;
 import org.codinjutsu.tools.mongo.view.nodedescriptor.MongoNodeDescriptor;
-import org.fest.swing.data.TableCell;
-import org.fest.swing.driver.BasicJTableCellReader;
-import org.fest.swing.edt.GuiActionRunner;
-import org.fest.swing.edt.GuiQuery;
-import org.fest.swing.fixture.*;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 import javax.swing.*;
 import java.io.IOException;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.*;
 
 public class MongoEditionPanelTest {
 
     private MongoEditionPanel mongoEditionPanel;
 
     private FrameFixture frameFixture;
-    private MyMongoDocumentOperations mongoDocumentOperations;
-    private MyActionCallback actionCallback;
+    private MongoPanel.MongoDocumentOperations mockMongoOperations = mock(MongoPanel.MongoDocumentOperations.class);
+    private MongoResultPanel.ActionCallback mockActionCallback = mock(MongoResultPanel.ActionCallback.class);
 
     @After
     public void tearDown() {
@@ -52,19 +56,14 @@ public class MongoEditionPanelTest {
     @Before
     public void setUp() throws Exception {
 
-        mongoDocumentOperations = new MyMongoDocumentOperations();
-        actionCallback = new MyActionCallback();
-
         mongoEditionPanel = GuiActionRunner.execute(new GuiQuery<MongoEditionPanel>() {
             protected MongoEditionPanel executeInEDT() {
-
                 MongoEditionPanel panel = new MongoEditionPanel() {
                     @Override
                     void buildPopupMenu() {
-
                     }
                 };
-                return panel.init(mongoDocumentOperations, actionCallback);
+                return panel.init(mockMongoOperations, mockActionCallback);
             }
         });
 
@@ -75,8 +74,10 @@ public class MongoEditionPanelTest {
 
     @Test
     public void displayMongoDocumentInTheTreeTable() throws Exception {
-        frameFixture.table("editionTreeTable").cellReader(new JsonTableCellReader())
-                .requireColumnCount(2)
+        JTableFixture tableFixture = frameFixture.table("editionTreeTable");
+        tableFixture.replaceCellReader(new JsonTableCellReader());
+
+        tableFixture.requireColumnCount(2)
                 .requireContents(new String[][]{
                         {"\"_id\"", "50b8d63414f85401b9268b99"},
                         {"\"label\"", "toto"},
@@ -87,30 +88,55 @@ public class MongoEditionPanelTest {
 
     @Test
     public void editKeyWithStringValue() throws Exception {
-        JTableFixture editionTreeTable = frameFixture.table("editionTreeTable").cellReader(new JsonTableCellReader());
+        JTableFixture editionTreeTable = frameFixture.table("editionTreeTable");
 
+        editionTreeTable.replaceCellReader(new JsonTableCellReader());
 
 //        edit 'label' key
-        editionTreeTable.enterValue(TableCell.row(1).column(1), "Hello");
+        editionTreeTable.cell(TableCell.row(1).column(1))
+                .doubleClick()
+                .enterValue("Hello");
 
         frameFixture.button("saveButton").click();
 
-        Assert.assertEquals("{ \"_id\" : { \"$oid\" : \"50b8d63414f85401b9268b99\"} , \"label\" : \"Hello\" , \"visible\" : false , \"image\" :  null }",
-                mongoDocumentOperations.getUpdatedMongoDocument().toString());
+        ArgumentCaptor<DBObject> argument = ArgumentCaptor.forClass(DBObject.class);
+        verify(mockMongoOperations).updateMongoDocument(argument.capture());
 
-        Assert.assertEquals("call onOperationSuccess", actionCallback.logString);
+        Assert.assertEquals("{ \"_id\" : { \"$oid\" : \"50b8d63414f85401b9268b99\"} , \"label\" : \"Hello\" , \"visible\" : false , \"image\" :  null }",
+                argument.getValue().toString());
+
+        verify(mockActionCallback, times(1)).onOperationSuccess(any(String.class));
+    }
+
+    @Test
+    public void cancelEdition() throws Exception {
+        JTableFixture editionTreeTable = frameFixture.table("editionTreeTable");
+
+        editionTreeTable.replaceCellReader(new JsonTableCellReader());
+
+//        edit 'label' key
+        editionTreeTable.cell(TableCell.row(1).column(1))
+                .doubleClick()
+                .enterValue("Hello");
+
+        frameFixture.button("cancelButton").click();
+        verify(mockMongoOperations, times(0)).updateMongoDocument(any(DBObject.class));
+
+        verify(mockActionCallback, times(1)).onOperationCancelled(any(String.class));
     }
 
     @Test
     public void addKeyWithSomeValue() throws Exception {
-        JTableFixture editionTreeTable = frameFixture.table("editionTreeTable").cellReader(new JsonTableCellReader());
+        JTableFixture editionTreeTable = frameFixture.table("editionTreeTable");
+
+        editionTreeTable.replaceCellReader(new JsonTableCellReader());
 
 
         editionTreeTable.selectCell(TableCell.row(1).column(1));
-        mongoEditionPanel.addKey("stringKey", JsonDataType.STRING, "pouet");
+        mongoEditionPanel.addKey("stringKey", "pouet");
 
         editionTreeTable.selectCell(TableCell.row(1).column(1));
-        mongoEditionPanel.addKey("numberKey", JsonDataType.STRING, "1.1");
+        mongoEditionPanel.addKey("numberKey", "1.1");
 
         editionTreeTable.requireContents(new String[][]{
                 {"\"_id\"", "50b8d63414f85401b9268b99"},
@@ -126,24 +152,26 @@ public class MongoEditionPanelTest {
     public void addValueInAList() throws Exception {
 
         mongoEditionPanel.updateEditionTree(buildDocument("simpleDocumentWithSubList.json"));
-        JTableFixture editionTreeTable = frameFixture.table("editionTreeTable").cellReader(new JsonTableCellReader());
+        JTableFixture editionTreeTable = frameFixture.table("editionTreeTable");
 
-        editionTreeTable.requireContents(new String[][] {
-        {"\"_id\"", "50b8d63414f85401b9268b99"},
-        {"\"title\"", "XP by example"},
-        {"\"tags\"", "[ \"pair programming\" , \"tdd\" , \"agile\"]"},
-        {"[0]", "pair programming"},
-        {"[1]", "tdd"},
-        {"[2]", "agile"},
-        {"\"innerList\"", "[ [ 1 , 2 , 3 , 4] , [ false , true] , [ { \"tagName\" : \"pouet\"} , { \"tagName\" : \"paf\"}]]"},
-        {"[0]", "[ 1 , 2 , 3 , 4]"},
-        {"[1]", "[ false , true]"},
-        {"[2]", "[ { \"tagName\" : \"pouet\"} , { \"tagName\" : \"paf\"}]"}});
+        editionTreeTable.replaceCellReader(new JsonTableCellReader());
+
+        editionTreeTable.requireContents(new String[][]{
+                {"\"_id\"", "50b8d63414f85401b9268b99"},
+                {"\"title\"", "XP by example"},
+                {"\"tags\"", "[ \"pair programming\" , \"tdd\" , \"agile\"]"},
+                {"[0]", "pair programming"},
+                {"[1]", "tdd"},
+                {"[2]", "agile"},
+                {"\"innerList\"", "[ [ 1 , 2 , 3 , 4] , [ false , true] , [ { \"tagName\" : \"pouet\"} , { \"tagName\" : \"paf\"}]]"},
+                {"[0]", "[ 1 , 2 , 3 , 4]"},
+                {"[1]", "[ false , true]"},
+                {"[2]", "[ { \"tagName\" : \"pouet\"} , { \"tagName\" : \"paf\"}]"}});
 
         editionTreeTable.selectCell(TableCell.row(3).column(1));
-        mongoEditionPanel.addValue(JsonDataType.STRING, "refactor");
+        mongoEditionPanel.addValue("refactor");
 
-        editionTreeTable.requireContents(new String[][] {
+        editionTreeTable.requireContents(new String[][]{
                 {"\"_id\"", "50b8d63414f85401b9268b99"},
                 {"\"title\"", "XP by example"},
                 {"\"tags\"", "[ \"pair programming\" , \"tdd\" , \"agile\"]"},
@@ -176,47 +204,7 @@ public class MongoEditionPanelTest {
 
     private DBObject buildDocument(String jsonFile) throws IOException {
         DBObject mongoDocument = (DBObject) JSON.parse(IOUtils.toString(getClass().getResourceAsStream("model/" + jsonFile)));
-
         mongoDocument.put("_id", new ObjectId(String.valueOf(mongoDocument.get("_id"))));
         return mongoDocument;
-    }
-
-    private static class MyMongoDocumentOperations implements MongoRunnerPanel.MongoDocumentOperations {
-
-        private DBObject mongoDocument = null;
-
-        @Override
-        public void updateMongoDocument(DBObject mongoDocument) {
-            this.mongoDocument = mongoDocument;
-        }
-
-        @Override
-        public DBObject getMongoDocument(ObjectId objectId) {
-            return new BasicDBObject();
-        }
-
-        @Override
-        public void deleteMongoDocument(ObjectId objectId) {
-
-        }
-
-        private DBObject getUpdatedMongoDocument() {
-            return mongoDocument;
-        }
-    }
-
-    private static class MyActionCallback implements MongoResultPanel.ActionCallback {
-
-        String logString ="";
-
-        @Override
-        public void onOperationSuccess(String message) {
-            logString = "call onOperationSuccess";
-        }
-
-        @Override
-        public void onOperationFailure(Exception exception) {
-            logString = "call onOperationFailure";
-        }
     }
 }

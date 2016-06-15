@@ -18,10 +18,6 @@ package org.codinjutsu.tools.mongo.view;
 
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.ValidationInfo;
-import com.mongodb.util.JSON;
-import com.mongodb.util.JSONParseException;
-import org.apache.commons.lang.StringUtils;
-import org.codinjutsu.tools.mongo.view.model.JsonDataType;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
@@ -34,10 +30,11 @@ public class AddValueDialog extends AbstractAddDialog {
     private JPanel valuePanel;
     private JPanel mainPanel;
 
-    public AddValueDialog(MongoEditionPanel mongoEditionPanel) {
+    private AddValueDialog(MongoEditionPanel mongoEditionPanel) {
         super(mongoEditionPanel);
         valuePanel.setLayout(new BorderLayout());
         typeCombobox.setName("valueType");
+        typeCombobox.requestFocus();
     }
 
     @Nullable
@@ -50,7 +47,6 @@ public class AddValueDialog extends AbstractAddDialog {
         AddValueDialog dialog = new AddValueDialog(parentPanel);
         dialog.init();
         dialog.setTitle("Add A Value");
-
         return dialog;
     }
 
@@ -64,31 +60,23 @@ public class AddValueDialog extends AbstractAddDialog {
     @Nullable
     @Override
     protected ValidationInfo doValidate() {
-
-        JsonDataType dataType = getJsonDataType();
-        if (JsonDataType.NULL.equals(dataType)) {
-            return null;
-        }
-
-        String value = getValue();
-        if (JsonDataType.NUMBER.equals(dataType) && StringUtils.isEmpty(value)) {
-            return new ValidationInfo("Key value is not set");
-        }
-
-        if (JsonDataType.OBJECT.equals(dataType)) {
-            try {
-                JSON.parse(value);
-            } catch (JSONParseException e) {
-                return new ValidationInfo("Invalid JSON object");
-            }
+        try {
+            currentEditor.validate();
+        } catch (Exception ex) {
+            return new ValidationInfo(ex.getMessage());
         }
 
         return null;
     }
 
     @Override
-    public String getValue() {
+    public Object getValue() {
         return currentEditor.getValue();
     }
 
+    @Nullable
+    @Override
+    public JComponent getPreferredFocusedComponent() {
+        return typeCombobox;
+    }
 }

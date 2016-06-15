@@ -16,75 +16,120 @@
 
 package org.codinjutsu.tools.mongo.runner;
 
+import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SettingsEditor;
-import com.intellij.ui.NumberDocument;
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.ComboBox;
+import com.intellij.openapi.ui.TextFieldWithBrowseButton;
+import com.intellij.ui.ColoredListCellRenderer;
+import com.intellij.ui.IdeBorderFactory;
 import com.intellij.ui.RawCommandLineEditor;
 import org.apache.commons.lang.StringUtils;
+import org.codinjutsu.tools.mongo.ServerConfiguration;
+import org.codinjutsu.tools.mongo.logic.MongoManager;
+import org.codinjutsu.tools.mongo.model.MongoDatabase;
+import org.codinjutsu.tools.mongo.model.MongoServer;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.util.LinkedList;
+import java.util.List;
 
 public class MongoRunConfigurationEditor extends SettingsEditor<MongoRunConfiguration> {
 
-    private JTextField scriptPathField;
-    private JCheckBox overwriteDefaultParameterCheckBox;
-    private JTextField hostField;
-    private JTextField portField;
-    private JTextField usernameField;
-    private JPasswordField passwordField;
-    private RawCommandLineEditor shellParametersField;
-
     private JPanel mainPanel;
 
+    private JTextField scriptPathField;
+    private ComboBox serverConfigurationCombobox;
+    private ComboBox databaseCombobox;
+    private JPanel mongoShellOptionsPanel;
+    private RawCommandLineEditor shellParametersField;
+    private TextFieldWithBrowseButton shellWorkingDirField;
 
-    public MongoRunConfigurationEditor() {
 
-        portField.setDocument(new NumberDocument());
-        setConnectionParameterFieldsEnabled(false);
+    public MongoRunConfigurationEditor(Project project) {
+        mongoShellOptionsPanel.setBorder(IdeBorderFactory.createTitledBorder("Mongo shell options", true));
 
-        overwriteDefaultParameterCheckBox.addActionListener(new ActionListener() {
+        shellParametersField.setDialogCaption("Mongo arguments");
+
+        MongoServer[] mongoServers = getAvailableMongoServers(project);
+
+        if (mongoServers.length == 0) {
+            serverConfigurationCombobox.setEnabled(false);
+            databaseCombobox.setEnabled(false);
+            return;
+        }
+
+        serverConfigurationCombobox.setModel(new DefaultComboBoxModel(mongoServers));
+
+        serverConfigurationCombobox.setRenderer(new ColoredListCellRenderer() {
             @Override
-            public void actionPerformed(ActionEvent actionEvent) {
-                boolean enabled = isOverwriteDefaultParameters();
-                setConnectionParameterFieldsEnabled(enabled);
+            protected void customizeCellRenderer(JList list, Object value, int index, boolean selected, boolean hasFocus) {
+                MongoServer serverConfiguration = (MongoServer) value;
+                append(serverConfiguration.getLabel());
             }
         });
+
+
+        databaseCombobox.setRenderer(new ColoredListCellRenderer() {
+            @Override
+            protected void customizeCellRenderer(JList list, Object value, int index, boolean selected, boolean hasFocus) {
+                MongoDatabase mongoDatabase = (MongoDatabase) value;
+                if (value == null) {
+                    return;
+                }
+                append(mongoDatabase.getName());
+            }
+        });
+
+
+        serverConfigurationCombobox.addItemListener(new ItemListener() {
+
+            @Override
+            public void itemStateChanged(ItemEvent itemEvent) {
+                MongoServer selectedServer = (MongoServer) serverConfigurationCombobox.getSelectedItem();
+                if (selectedServer == null) {
+                    return;
+                }
+                databaseCombobox.removeAllItems();
+                for (MongoDatabase mongoDatabase: selectedServer.getDatabases()) {
+                    databaseCombobox.addItem(mongoDatabase);
+                }
+            }
+        });
+
+        serverConfigurationCombobox.setSelectedIndex(-1);
+        serverConfigurationCombobox.setSelectedIndex(0);
     }
 
-    private void setConnectionParameterFieldsEnabled(boolean enabled) {
-        hostField.setEnabled(enabled);
-        portField.setEnabled(enabled);
-        usernameField.setEnabled(enabled);
-        passwordField.setEnabled(enabled);
+    private MongoServer[] getAvailableMongoServers(Project project) {
+        List<MongoServer> mongoServers = MongoManager.getInstance(project).getServers();
+        List<MongoServer> availableMongoServers = new LinkedList<MongoServer>();
+        for (MongoServer mongoServer : mongoServers) {
+            if (mongoServer.hasDatabases()) {
+                availableMongoServers.add(mongoServer);
+            }
+        }
+        return availableMongoServers.toArray(new MongoServer[availableMongoServers.size()]);
     }
 
     @Override
     protected void resetEditorFrom(MongoRunConfiguration configuration) {
         scriptPathField.setText(configuration.getScriptPath() != null ? configuration.getScriptPath().getPath() : null);
         shellParametersField.setText(configuration.getShellParameters());
-        overwriteDefaultParameterCheckBox.setSelected(configuration.isOverwriteDefaultParameters());
-        if (configuration.isOverwriteDefaultParameters()) {
-            hostField.setText(configuration.getHost());
-            portField.setText(String.valueOf(configuration.getPort()));
-            usernameField.setText(configuration.getUsername());
-            passwordField.setText(configuration.getPassword());
-        }
+        shellWorkingDirField.setText(configuration.getShellWorkingDir());
     }
 
     @Override
     protected void applyEditorTo(MongoRunConfiguration configuration) throws ConfigurationException {
         configuration.setScriptPath(getScriptPath());
+        configuration.setServerConfiguration(getSelectedConfiguration());
+        configuration.setDatabase(getSelectedDatabase());
         configuration.setShellParameters(getShellParameters());
-        configuration.setOverwriteDefaultParameters(isOverwriteDefaultParameters());
-        if (configuration.isOverwriteDefaultParameters()) {
-            configuration.setHost(getHost());
-            configuration.setPort(getPort());
-            configuration.setUsername(getUsername());
-            configuration.setPassword(getPassword());
-        }
+        configuration.setShellWorkingDir(getShellWorkingDir());
     }
 
     private String getScriptPath() {
@@ -95,26 +140,22 @@ public class MongoRunConfigurationEditor extends SettingsEditor<MongoRunConfigur
         return shellParametersField.getText();
     }
 
-    private boolean isOverwriteDefaultParameters() {
-        return overwriteDefaultParameterCheckBox.isSelected();
+    private ServerConfiguration getSelectedConfiguration() {
+        MongoServer selectedServer = (MongoServer) serverConfigurationCombobox.getSelectedItem();
+        return selectedServer == null ? null : selectedServer.getConfiguration();
     }
 
-    private String getHost() {
-        return hostField.getText();
+    public MongoDatabase getSelectedDatabase() {
+        return (MongoDatabase) databaseCombobox.getSelectedItem();
     }
 
-    private String getPassword() {
-        return String.valueOf(passwordField.getPassword());
-    }
+    private String getShellWorkingDir() {
+        String shellWorkingDir = shellWorkingDirField.getText();
+        if (StringUtils.isNotBlank(shellWorkingDir)) {
+            return shellWorkingDir;
+        }
 
-    private String getUsername() {
-        return usernameField.getText();
-    }
-
-    private Integer getPort() {
-        String portStrValue = portField.getText();
-        if (StringUtils.isEmpty(portStrValue)) return 0;
-        return Integer.valueOf(portStrValue);
+        return null;
     }
 
     @NotNull
@@ -125,6 +166,13 @@ public class MongoRunConfigurationEditor extends SettingsEditor<MongoRunConfigur
 
     @Override
     protected void disposeEditor() {
-        mainPanel = null;
+
+    }
+
+    private void createUIComponents() {
+        shellWorkingDirField = new TextFieldWithBrowseButton();
+        shellWorkingDirField.addBrowseFolderListener("Mongo shell working directory", "", null,
+                new FileChooserDescriptor(false, true, false, false, false, false));
+        shellWorkingDirField.setName("shellWorkingDirField");
     }
 }

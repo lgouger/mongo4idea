@@ -17,21 +17,25 @@
 package org.codinjutsu.tools.mongo.view;
 
 import com.intellij.execution.ExecutionException;
+import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.options.BaseConfigurable;
 import com.intellij.openapi.options.ConfigurationException;
+import com.intellij.openapi.options.SearchableConfigurable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.LabeledComponent;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.ui.*;
 import com.intellij.ui.table.JBTable;
+import com.intellij.util.PlatformIcons;
 import org.apache.commons.lang.StringUtils;
 import org.codinjutsu.tools.mongo.MongoConfiguration;
 import org.codinjutsu.tools.mongo.ServerConfiguration;
 import org.codinjutsu.tools.mongo.logic.MongoManager;
 import org.codinjutsu.tools.mongo.utils.MongoUtils;
 import org.jetbrains.annotations.Nls;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
@@ -44,9 +48,10 @@ import java.util.LinkedList;
 import java.util.List;
 
 
-public class MongoConfigurable extends BaseConfigurable {
+public class MongoConfigurable extends BaseConfigurable implements SearchableConfigurable {
 
 
+    public static final String PLUGIN_SETTINGS_NAME = "Mongo Servers";
     private final Project project;
 
     private final MongoConfiguration configuration;
@@ -65,7 +70,7 @@ public class MongoConfigurable extends BaseConfigurable {
         this.project = project;
         this.configuration = MongoConfiguration.getInstance(project);
         this.mongoManager = MongoManager.getInstance(project);
-        configurations = new LinkedList<ServerConfiguration>(this.configuration.getServerConfigurations());
+        configurations = new LinkedList<>(this.configuration.getServerConfigurations());
         tableModel = new MongoServerTableModel(configurations);
         mainPanel = new JPanel(new BorderLayout());
     }
@@ -73,12 +78,7 @@ public class MongoConfigurable extends BaseConfigurable {
     @Nls
     @Override
     public String getDisplayName() {
-        return "Mongo servers";
-    }
-
-    @Nullable
-    public Icon getIcon() {
-        return null;
+        return PLUGIN_SETTINGS_NAME;
     }
 
     @Nullable
@@ -93,7 +93,7 @@ public class MongoConfigurable extends BaseConfigurable {
         JPanel mongoShellOptionsPanel = new JPanel();
         mongoShellOptionsPanel.setLayout(new BoxLayout(mongoShellOptionsPanel, BoxLayout.X_AXIS));
         shellPathField = createShellPathField();
-        mongoShellOptionsPanel.add(new JLabel("Path to Mongo executable:"));
+        mongoShellOptionsPanel.add(new JLabel("Path to Mongo Shell:"));
         mongoShellOptionsPanel.add(shellPathField);
         mongoShellOptionsPanel.add(createTestButton());
         mongoShellOptionsPanel.add(createFeedbackLabel());
@@ -138,7 +138,7 @@ public class MongoConfigurable extends BaseConfigurable {
 
                                 ServerConfiguration serverConfiguration = ServerConfiguration.byDefault();
 
-                                ConfigurationDialog dialog = new ConfigurationDialog(mainPanel, mongoManager, serverConfiguration);
+                                ConfigurationDialog dialog = new ConfigurationDialog(project, mainPanel, mongoManager, serverConfiguration);
                                 dialog.setTitle("Add a Mongo Server");
                                 dialog.show();
                                 if (!dialog.isOK()) {
@@ -163,17 +163,17 @@ public class MongoConfigurable extends BaseConfigurable {
                                     return;
                                 }
                                 ServerConfiguration sourceConfiguration = configurations.get(selectedIndex);
-                                ServerConfiguration copiedCconfiguration = sourceConfiguration.clone();
+                                ServerConfiguration copiedConfiguration = sourceConfiguration.clone();
 
 
-                                ConfigurationDialog dialog = new ConfigurationDialog(mainPanel, mongoManager, copiedCconfiguration);
+                                ConfigurationDialog dialog = new ConfigurationDialog(project, mainPanel, mongoManager, copiedConfiguration);
                                 dialog.setTitle("Edit a Mongo Server");
                                 dialog.show();
                                 if (!dialog.isOK()) {
                                     return;
                                 }
 
-                                configurations.set(selectedIndex, copiedCconfiguration);
+                                configurations.set(selectedIndex, copiedConfiguration);
                                 tableModel.fireTableRowsUpdated(selectedIndex, selectedIndex);
                                 table.getSelectionModel().setSelectionInterval(selectedIndex, selectedIndex);
                             }
@@ -192,7 +192,24 @@ public class MongoConfigurable extends BaseConfigurable {
                             }
                         })
                         .setRemoveActionName("removeServer")
-                        .disableUpDownActions().createPanel();
+                        .disableUpDownActions()
+                        .addExtraAction(new AnActionButton("copyServer", PlatformIcons.COPY_ICON) {
+                            @Override
+                            public void actionPerformed(@NotNull AnActionEvent e) {
+                                int selectedIndex = table.getSelectedRow();
+                                ServerConfiguration sourceConfiguration = configurations.get(selectedIndex);
+                                ServerConfiguration copiedConfiguration = sourceConfiguration.clone();
+
+                                copiedConfiguration.setPassword("");
+
+                                configurations.add(copiedConfiguration);
+                                int index = configurations.size() - 1;
+                                tableModel.fireTableRowsInserted(index, index);
+                                table.getSelectionModel().setSelectionInterval(index, index);
+                                table.scrollRectToVisible(table.getCellRect(index, 0, true));
+                            }
+                        })
+                        .createPanel();
             }
         };
 
@@ -235,7 +252,7 @@ public class MongoConfigurable extends BaseConfigurable {
         TextFieldWithBrowseButton component = new TextFieldWithBrowseButton();
         component.getChildComponent().setName("shellPathField");
         shellPathField.setComponent(component);
-        shellPathField.getComponent().addBrowseFolderListener("Mongo shell configuration", "", null,
+        shellPathField.getComponent().addBrowseFolderListener("Mongo Shell Configuration", "", null,
                 new FileChooserDescriptor(true, false, false, false, false, false));
 
         shellPathField.getComponent().setText(configuration.getShellPath());
@@ -314,4 +331,15 @@ public class MongoConfigurable extends BaseConfigurable {
         }
     }
 
+    @NotNull
+    @Override
+    public String getId() {
+        return "preferences.mongoOptions";
+    }
+
+    @Nullable
+    @Override
+    public Runnable enableSearch(String option) {
+        return null;
+    }
 }

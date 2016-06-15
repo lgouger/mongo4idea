@@ -25,14 +25,18 @@ import javax.swing.*;
 
 public class EnableAggregateAction extends ToggleAction {
 
-    private static final Icon AGGREGATION_ICON = GuiUtils.loadIcon("table_multiple.png");
+    private static final String ENABLE_FIND_MODE = "Toggle to Find Mode";
+    private static final String ENABLE_AGGREGATION_MODE = "Toggle to Aggregation Mode";
+    private static final Icon AGGREGATION_ICON = GuiUtils.loadIcon("sqlGroupByType.png");
+    private static final String QUERY_FIND_SAMPLE = "ex: {'name': 'foo'}";
+    private static final String QUERY_AGGREGATION_SAMPLE = "ex: [{'$match': {'name': 'foo'}, {'$project': {'address': 1}}]";
 
     private final QueryPanel queryPanel;
 
-    private boolean enableAggregation = true;
+    private boolean enableAggregation = false;
 
     public EnableAggregateAction(final QueryPanel queryPanel) {
-        super("Enable aggregation", "toggle find/aggregation", AGGREGATION_ICON);
+        super(ENABLE_AGGREGATION_MODE, QUERY_FIND_SAMPLE, AGGREGATION_ICON);
         this.queryPanel = queryPanel;
     }
 
@@ -43,12 +47,19 @@ public class EnableAggregateAction extends ToggleAction {
     }
 
     @Override
-    public void setSelected(AnActionEvent anActionEvent, boolean enableAggregation) {
+    public void setSelected(AnActionEvent event, boolean enableAggregation) {
         this.enableAggregation = enableAggregation;
         if (enableAggregation) {
             queryPanel.toggleToAggregation();
         } else {
             queryPanel.toggleToFind();
         }
+    }
+
+    @Override
+    public void update(AnActionEvent event) {
+        event.getPresentation().setText(isSelected(event) ? ENABLE_FIND_MODE : ENABLE_AGGREGATION_MODE);
+        event.getPresentation().setDescription(isSelected(event) ? QUERY_AGGREGATION_SAMPLE : QUERY_FIND_SAMPLE);
+        event.getPresentation().setVisible(queryPanel.isVisible());
     }
 }

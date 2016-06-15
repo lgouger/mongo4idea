@@ -19,15 +19,16 @@ package org.codinjutsu.tools.mongo.view.action;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.DumbAware;
-import org.codinjutsu.tools.mongo.utils.GuiUtils;
 import org.codinjutsu.tools.mongo.view.MongoExplorerPanel;
+import org.codinjutsu.tools.mongo.view.style.StyleAttributesProvider;
+
 
 public class ViewCollectionValuesAction extends AnAction implements DumbAware {
 
     private final MongoExplorerPanel mongoExplorerPanel;
 
     public ViewCollectionValuesAction(MongoExplorerPanel mongoExplorerPanel) {
-        super("View collection content", "View collection content", GuiUtils.loadIcon("folder_magnify.png"));
+        super("View collection content", "View collection content",  StyleAttributesProvider.getDataSchemaIcon());
         this.mongoExplorerPanel = mongoExplorerPanel;
     }
 
@@ -38,6 +39,6 @@ public class ViewCollectionValuesAction extends AnAction implements DumbAware {
 
     @Override
     public void update(AnActionEvent event) {
-        event.getPresentation().setEnabled(mongoExplorerPanel.getSelectedCollectionValues() != null);
+        event.getPresentation().setVisible(mongoExplorerPanel.getSelectedCollection() != null);
     }
 }

@@ -26,7 +26,6 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.tree.TreeUtil;
 import com.mongodb.DBObject;
 import org.apache.commons.lang.StringUtils;
-import org.bson.types.ObjectId;
 import org.codinjutsu.tools.mongo.utils.MongoUtils;
 import org.codinjutsu.tools.mongo.view.action.edition.AddKeyAction;
 import org.codinjutsu.tools.mongo.view.action.edition.AddValueAction;
@@ -60,7 +59,6 @@ public class MongoEditionPanel extends JPanel implements Disposable {
     public MongoEditionPanel() {
         super(new BorderLayout());
 
-        mainPanel.setBorder(IdeBorderFactory.createTitledBorder("Edition", true));
         add(mainPanel);
         editionTreePanel.setLayout(new BorderLayout());
 
@@ -69,12 +67,12 @@ public class MongoEditionPanel extends JPanel implements Disposable {
         deleteButton.setName("deleteButton");
     }
 
-    public MongoEditionPanel init(final MongoRunnerPanel.MongoDocumentOperations mongoDocumentOperations, final MongoResultPanel.ActionCallback actionCallback) {
+    public MongoEditionPanel init(final MongoPanel.MongoDocumentOperations mongoDocumentOperations, final MongoResultPanel.ActionCallback actionCallback) {
 
         cancelButton.addActionListener(new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-                actionCallback.onOperationSuccess("Modification canceled...");
+                actionCallback.onOperationCancelled("Modification canceled...");
             }
         });
 
@@ -94,7 +92,7 @@ public class MongoEditionPanel extends JPanel implements Disposable {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
                 try {
-                    mongoDocumentOperations.deleteMongoDocument(getMongoDocument());
+                    mongoDocumentOperations.deleteMongoDocument(getDocumentId());
                     actionCallback.onOperationSuccess("Document deleted...");
                 } catch (Exception exception) {
                     actionCallback.onOperationFailure(exception);
@@ -106,6 +104,12 @@ public class MongoEditionPanel extends JPanel implements Disposable {
     }
 
     public void updateEditionTree(DBObject mongoDocument) {
+        String panelTitle = "New document";
+        if (mongoDocument != null) {
+            panelTitle = "Edition";
+        }
+
+        mainPanel.setBorder(IdeBorderFactory.createTitledBorder(panelTitle, true));
         editTableView = new JsonTreeTableView(JsonTreeModel.buildJsonTree(mongoDocument), JsonTreeTableView.COLUMNS_FOR_WRITING);
         editTableView.setName("editionTreeTable");
 
@@ -130,6 +134,10 @@ public class MongoEditionPanel extends JPanel implements Disposable {
 
     public boolean containsKey(String key) {
         JsonTreeNode parentNode = getParentNode();
+        if (parentNode == null) {
+            return false;
+        }
+
         Enumeration children = parentNode.children();
         while(children.hasMoreElements()) {
             JsonTreeNode childNode = (JsonTreeNode) children.nextElement();
@@ -144,14 +152,13 @@ public class MongoEditionPanel extends JPanel implements Disposable {
         return false;
     }
 
-    public void addKey(String key, JsonDataType jsonDataType, String value) {
+    public void addKey(String key, Object value) {
 
         List<TreeNode> node = new LinkedList<TreeNode>();
-        Object mongoObject = MongoUtils.parseValue(jsonDataType, value);
-        JsonTreeNode treeNode = new JsonTreeNode(MongoKeyValueDescriptor.createDescriptor(key, mongoObject));
+        JsonTreeNode treeNode = new JsonTreeNode(MongoKeyValueDescriptor.createDescriptor(key, value));
 
-        if (mongoObject instanceof DBObject) {
-             JsonTreeModel.processDbObject(treeNode, (DBObject) mongoObject);
+        if (value instanceof DBObject) {
+             JsonTreeModel.processDbObject(treeNode, (DBObject) value);
         }
 
         node.add(treeNode);
@@ -165,15 +172,14 @@ public class MongoEditionPanel extends JPanel implements Disposable {
         treeModel.reload(parentNode);
     }
 
-    public void addValue(JsonDataType jsonDataType, String value) {
+    public void addValue(Object value) {
         List<TreeNode> node = new LinkedList<TreeNode>();
-        Object mongoObject = MongoUtils.parseValue(jsonDataType, value);
 
         JsonTreeNode parentNode = getParentNode();
 
-        JsonTreeNode treeNode = new JsonTreeNode(MongoValueDescriptor.createDescriptor(parentNode.getChildCount(), mongoObject));
-        if (mongoObject instanceof DBObject) {
-            JsonTreeModel.processDbObject(treeNode, (DBObject) mongoObject);
+        JsonTreeNode treeNode = new JsonTreeNode(MongoValueDescriptor.createDescriptor(parentNode.getChildCount(), value));
+        if (value instanceof DBObject) {
+            JsonTreeModel.processDbObject(treeNode, (DBObject) value);
         }
 
         node.add(treeNode);
@@ -184,11 +190,19 @@ public class MongoEditionPanel extends JPanel implements Disposable {
     }
 
     private JsonTreeNode getParentNode() {
-        return (JsonTreeNode) ((JsonTreeNode) editTableView.getTree().getLastSelectedPathComponent()).getParent();
+        JsonTreeNode lastPathComponent = getSelectedNode();
+        if (lastPathComponent == null) {
+            return null;
+        }
+        return (JsonTreeNode) lastPathComponent.getParent();
+    }
+
+    public JsonTreeNode getSelectedNode() {
+        return (JsonTreeNode) editTableView.getTree().getLastSelectedPathComponent();
     }
 
     public boolean canAddKey() {
-        JsonTreeNode selectedNode = (JsonTreeNode) editTableView.getTree().getLastSelectedPathComponent();
+        JsonTreeNode selectedNode = getSelectedNode();
         if (selectedNode == null) {
             return false;
         }
@@ -196,7 +210,7 @@ public class MongoEditionPanel extends JPanel implements Disposable {
     }
 
     public boolean canAddValue() {
-        JsonTreeNode selectedNode = (JsonTreeNode) editTableView.getTree().getLastSelectedPathComponent();
+        JsonTreeNode selectedNode = getSelectedNode();
         if (selectedNode == null) {
             return false;
         }
@@ -204,7 +218,7 @@ public class MongoEditionPanel extends JPanel implements Disposable {
     }
 
     public void removeSelectedKey() {
-        JsonTreeNode selectedNode = (JsonTreeNode) editTableView.getTree().getLastSelectedPathComponent();
+        JsonTreeNode selectedNode = getSelectedNode();
         if (selectedNode == null) {
             return;
         }
@@ -222,10 +236,10 @@ public class MongoEditionPanel extends JPanel implements Disposable {
         editTableView = null;
     }
 
-    private ObjectId getMongoDocument() {
+    private Object getDocumentId() {
         JsonTreeNode rootNode = (JsonTreeNode) editTableView.getTree().getModel().getRoot();
 
-        return (ObjectId) findObjectIdNodeDescriptor(rootNode).getDescriptor().getValue();
+        return findObjectIdNodeDescriptor(rootNode).getDescriptor().getValue();
     }
 
     private JsonTreeNode findObjectIdNodeDescriptor(JsonTreeNode rootNode) {

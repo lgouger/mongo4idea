@@ -27,12 +27,12 @@ import com.intellij.util.ui.UIUtil;
 import com.intellij.util.ui.tree.TreeUtil;
 import com.mongodb.DBObject;
 import org.bson.types.ObjectId;
-import org.codinjutsu.tools.mongo.view.editor.MongoDatePickerCellEditor;
-import org.codinjutsu.tools.mongo.view.editor.MongoValueCellEditor;
 import org.codinjutsu.tools.mongo.view.model.JsonTreeNode;
 import org.codinjutsu.tools.mongo.view.nodedescriptor.MongoNodeDescriptor;
 import org.codinjutsu.tools.mongo.view.renderer.MongoKeyCellRenderer;
 import org.codinjutsu.tools.mongo.view.renderer.MongoValueCellRenderer;
+import org.codinjutsu.tools.mongo.view.table.MongoDatePickerCellEditor;
+import org.codinjutsu.tools.mongo.view.table.MongoValueCellEditor;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.table.TableCellEditor;
@@ -132,7 +132,6 @@ public class JsonTreeTableView extends TreeTable {
             return myRenderer;
         }
 
-        @Nullable
         @Override
         public boolean isCellEditable(JsonTreeNode o) {
             return false;
@@ -202,7 +201,5 @@ public class JsonTreeTableView extends TreeTable {
         public void setValue(JsonTreeNode treeNode, Object value) {
             treeNode.getDescriptor().setValue(value);
         }
-
     }
-
 }

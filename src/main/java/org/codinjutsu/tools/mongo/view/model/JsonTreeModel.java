@@ -19,6 +19,7 @@ package org.codinjutsu.tools.mongo.view.model;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
+import org.apache.commons.lang.StringUtils;
 import org.codinjutsu.tools.mongo.model.MongoCollectionResult;
 import org.codinjutsu.tools.mongo.view.nodedescriptor.MongoKeyValueDescriptor;
 import org.codinjutsu.tools.mongo.view.nodedescriptor.MongoNodeDescriptor;
@@ -28,7 +29,6 @@ import org.codinjutsu.tools.mongo.view.nodedescriptor.MongoValueDescriptor;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
 import java.util.Enumeration;
-import java.util.LinkedList;
 import java.util.List;
 
 public class JsonTreeModel extends DefaultTreeModel {
@@ -47,7 +47,7 @@ public class JsonTreeModel extends DefaultTreeModel {
         for (DBObject mongoObject : mongoObjects) {
             if (mongoObject instanceof BasicDBList) {
                 processDbObject(rootNode, mongoObject);
-            } else if (mongoObject instanceof BasicDBObject) {
+            } else if (mongoObject instanceof BasicDBObject) {//dead code?
                 JsonTreeNode currentNode = new JsonTreeNode(MongoValueDescriptor.createDescriptor(i++, mongoObject));
                 processDbObject(currentNode, mongoObject);
                 rootNode.add(currentNode);
@@ -57,7 +57,7 @@ public class JsonTreeModel extends DefaultTreeModel {
     }
 
     public static TreeNode buildJsonTree(DBObject mongoObject) {
-        JsonTreeNode rootNode = new JsonTreeNode(new MongoResultDescriptor(mongoObject));//TODO crappy
+        JsonTreeNode rootNode = new JsonTreeNode(new MongoResultDescriptor());//TODO crappy
         processDbObject(rootNode, mongoObject);
         return rootNode;
     }
@@ -125,5 +125,37 @@ public class JsonTreeModel extends DefaultTreeModel {
             }
         }
         return basicDBList;
+    }
+
+    public static JsonTreeNode findObjectIdNode(JsonTreeNode treeNode) {
+        MongoNodeDescriptor descriptor = treeNode.getDescriptor();
+        if (descriptor instanceof MongoResultDescriptor) { //defensive prog?
+            return null;
+        }
+
+        if (descriptor instanceof MongoKeyValueDescriptor) {
+            MongoKeyValueDescriptor keyValueDescriptor = (MongoKeyValueDescriptor) descriptor;
+            if (StringUtils.equals(keyValueDescriptor.getKey(), "_id")) {
+                return treeNode;
+            }
+        }
+
+        JsonTreeNode parentTreeNode = (JsonTreeNode) treeNode.getParent();
+        if (parentTreeNode.getDescriptor() instanceof MongoValueDescriptor) {
+            if (((JsonTreeNode) parentTreeNode.getParent()).getDescriptor() instanceof MongoResultDescriptor) {
+                //find
+            }
+        }
+
+        return null;
+    }
+
+    public static Object findDocument(JsonTreeNode startingNode) {
+        if (startingNode.getDescriptor() instanceof MongoValueDescriptor) {
+            if (((JsonTreeNode) startingNode.getParent()).getDescriptor() instanceof MongoResultDescriptor) {
+                return startingNode.getDescriptor().getValue();
+            }
+        }
+        return null;
     }
 }

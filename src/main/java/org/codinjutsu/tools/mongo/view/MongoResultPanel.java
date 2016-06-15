@@ -16,31 +16,28 @@
 
 package org.codinjutsu.tools.mongo.view;
 
-import com.intellij.ide.CommonActionsManager;
-import com.intellij.ide.TreeExpander;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionManager;
-import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.MessageType;
 import com.intellij.openapi.ui.Splitter;
+import com.intellij.openapi.ui.popup.Balloon;
 import com.intellij.openapi.util.Disposer;
-import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.PopupHandler;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.treeStructure.treetable.TreeTableTree;
 import com.intellij.util.ui.tree.TreeUtil;
 import com.mongodb.DBObject;
 import org.apache.commons.lang.StringUtils;
-import org.bson.types.ObjectId;
 import org.codinjutsu.tools.mongo.model.MongoCollectionResult;
 import org.codinjutsu.tools.mongo.utils.GuiUtils;
 import org.codinjutsu.tools.mongo.view.action.CopyResultAction;
 import org.codinjutsu.tools.mongo.view.action.EditMongoDocumentAction;
 import org.codinjutsu.tools.mongo.view.model.JsonTreeModel;
 import org.codinjutsu.tools.mongo.view.model.JsonTreeNode;
+import org.codinjutsu.tools.mongo.view.nodedescriptor.MongoKeyValueDescriptor;
 import org.codinjutsu.tools.mongo.view.nodedescriptor.MongoNodeDescriptor;
 import org.codinjutsu.tools.mongo.view.nodedescriptor.MongoResultDescriptor;
 
@@ -54,25 +51,22 @@ import java.util.List;
 
 public class MongoResultPanel extends JPanel implements Disposable {
 
-    private final Project project;
-    private final MongoRunnerPanel.MongoDocumentOperations mongoDocumentOperations;
-    private JPanel resultToolbar;
+    private final MongoPanel.MongoDocumentOperations mongoDocumentOperations;
     private JPanel mainPanel;
     private JPanel containerPanel;
-    private Splitter splitter;
-    private JPanel resultTreePanel;
-    private MongoEditionPanel mongoEditionPanel;
+    private final Splitter splitter;
+    private final JPanel resultTreePanel;
+    private final MongoEditionPanel mongoEditionPanel;
 
     JsonTreeTableView resultTableView;
 
 
-    public MongoResultPanel(Project project, MongoRunnerPanel.MongoDocumentOperations mongoDocumentOperations) {
-        this.project = project;
+    public MongoResultPanel(Project project, MongoPanel.MongoDocumentOperations mongoDocumentOperations) {
         this.mongoDocumentOperations = mongoDocumentOperations;
         setLayout(new BorderLayout());
         add(mainPanel, BorderLayout.CENTER);
 
-        splitter = new Splitter(false, 0.6f);
+        splitter = new Splitter(true, 0.6f);
 
         resultTreePanel = new JPanel(new BorderLayout());
 
@@ -83,7 +77,6 @@ public class MongoResultPanel extends JPanel implements Disposable {
         containerPanel.setLayout(new BorderLayout());
         containerPanel.add(splitter);
 
-        resultToolbar.setLayout(new BorderLayout());
         Disposer.register(project, this);
     }
 
@@ -91,21 +84,17 @@ public class MongoResultPanel extends JPanel implements Disposable {
         return new MongoEditionPanel().init(mongoDocumentOperations, new ActionCallback() {
             public void onOperationSuccess(String message) {
                 hideEditionPanel();
-                showNotification(MessageType.INFO, message);
+                GuiUtils.showNotification(MongoResultPanel.this.resultTreePanel, MessageType.INFO, message, Balloon.Position.above);
             }
 
             @Override
             public void onOperationFailure(Exception exception) {
-                showNotification(MessageType.ERROR, exception.getMessage());
+                GuiUtils.showNotification(MongoResultPanel.this.resultTreePanel, MessageType.ERROR, exception.getMessage(), Balloon.Position.above);
             }
-        });
-    }
 
-    private void showNotification(final MessageType info, final String message) {
-        GuiUtils.runInSwingThread(new Runnable() {
             @Override
-            public void run() {
-                ToolWindowManager.getInstance(project).notifyByBalloon(MongoWindowManager.MONGO_RUNNER, info, message);
+            public void onOperationCancelled(String message) {
+                hideEditionPanel();
             }
         });
     }
@@ -117,7 +106,7 @@ public class MongoResultPanel extends JPanel implements Disposable {
         resultTableView.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent mouseEvent) {
-                if (mouseEvent.getClickCount() == 2 && MongoResultPanel.this.isSelectedNodeObjectId()) {
+                if (mouseEvent.getClickCount() == 2 && MongoResultPanel.this.isSelectedNodeId()) {
                     MongoResultPanel.this.editSelectedMongoDocument();
                 }
             }
@@ -135,6 +124,7 @@ public class MongoResultPanel extends JPanel implements Disposable {
         DefaultActionGroup actionPopupGroup = new DefaultActionGroup("MongoResultPopupGroup", true);
         if (ApplicationManager.getApplication() != null) {
             actionPopupGroup.add(new EditMongoDocumentAction(this));
+            actionPopupGroup.add(new CopyResultAction(this));
         }
 
         PopupHandler.installPopupHandler(resultTableView, actionPopupGroup, "POPUP", ActionManager.getInstance());
@@ -154,6 +144,12 @@ public class MongoResultPanel extends JPanel implements Disposable {
         splitter.setSecondComponent(mongoEditionPanel);
     }
 
+
+    public void addMongoDocument() {
+        mongoEditionPanel.updateEditionTree(null);
+        splitter.setSecondComponent(mongoEditionPanel);
+    }
+
     private DBObject getSelectedMongoDocument() {
         TreeTableTree tree = resultTableView.getTree();
         JsonTreeNode treeNode = (JsonTreeNode) tree.getLastSelectedPathComponent();
@@ -162,76 +158,42 @@ public class MongoResultPanel extends JPanel implements Disposable {
         }
 
         MongoNodeDescriptor descriptor = treeNode.getDescriptor();
-        Object value = descriptor.getValue();
-        if (value instanceof ObjectId) {
-            return mongoDocumentOperations.getMongoDocument((ObjectId) value);
+        if (descriptor instanceof MongoKeyValueDescriptor) {
+            MongoKeyValueDescriptor keyValueDescriptor = (MongoKeyValueDescriptor) descriptor;
+            if (StringUtils.equals(keyValueDescriptor.getKey(), "_id")) {
+                return mongoDocumentOperations.getMongoDocument(keyValueDescriptor.getValue());
+            }
         }
 
         return null;
     }
 
-    public boolean isSelectedNodeObjectId() {
+
+    public boolean isSelectedNodeId() {
+        if (resultTableView == null) {
+            return false;
+        }
         TreeTableTree tree = resultTableView.getTree();
         JsonTreeNode treeNode = (JsonTreeNode) tree.getLastSelectedPathComponent();
         if (treeNode == null) {
             return false;
         }
 
-        Object value = treeNode.getDescriptor().getValue();
+        MongoNodeDescriptor descriptor = treeNode.getDescriptor();
+        if (descriptor instanceof MongoKeyValueDescriptor) {
+            MongoKeyValueDescriptor keyValueDescriptor = (MongoKeyValueDescriptor) descriptor;
+            return StringUtils.equals(keyValueDescriptor.getKey(), "_id");
+        }
 
-        return value instanceof ObjectId;
+        return false;
     }
 
-    public void installActions() {
-        DefaultActionGroup actionResultGroup = new DefaultActionGroup("MongoResultGroup", true);
-        actionResultGroup.add(new CopyResultAction(this));
 
-        final TreeExpander treeExpander = new TreeExpander() {
-            @Override
-            public void expandAll() {
-                MongoResultPanel.this.expandAll();
-            }
-
-            @Override
-            public boolean canExpand() {
-                return true;
-            }
-
-            @Override
-            public void collapseAll() {
-                MongoResultPanel.this.collapseAll();
-            }
-
-            @Override
-            public boolean canCollapse() {
-                return true;
-            }
-        };
-
-        CommonActionsManager actionsManager = CommonActionsManager.getInstance();
-
-        final AnAction expandAllAction = actionsManager.createExpandAllAction(treeExpander, mainPanel);
-        final AnAction collapseAllAction = actionsManager.createCollapseAllAction(treeExpander, mainPanel);
-
-        Disposer.register(this, new Disposable() {
-            @Override
-            public void dispose() {
-                collapseAllAction.unregisterCustomShortcutSet(mainPanel);
-                expandAllAction.unregisterCustomShortcutSet(mainPanel);
-            }
-        });
-
-        actionResultGroup.add(expandAllAction);
-        actionResultGroup.add(collapseAllAction);
-
-        GuiUtils.installActionGroupInToolBar(actionResultGroup, resultToolbar, ActionManager.getInstance(), "MongoQueryGroupActions", false);
-    }
-
-    private void expandAll() {
+    void expandAll() {
         TreeUtil.expandAll(resultTableView.getTree());
     }
 
-    private void collapseAll() {
+    void collapseAll() {
         TreeTableTree tree = resultTableView.getTree();
         TreeUtil.collapseAll(tree, 1);
     }
@@ -252,7 +214,6 @@ public class MongoResultPanel extends JPanel implements Disposable {
     private void hideEditionPanel() {
         splitter.setSecondComponent(null);
     }
-
 
     private String stringifyResult(DefaultMutableTreeNode selectedResultNode) {
         List<Object> stringifiedObjects = new LinkedList<Object>();
@@ -275,5 +236,7 @@ public class MongoResultPanel extends JPanel implements Disposable {
         void onOperationSuccess(String message);
 
         void onOperationFailure(Exception exception);
+
+        void onOperationCancelled(String message);
     }
 }

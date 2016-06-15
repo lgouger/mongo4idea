@@ -18,7 +18,8 @@ package org.codinjutsu.tools.mongo.view;
 
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.HoverHyperlinkLabel;
-import org.codinjutsu.tools.mongo.utils.GuiUtils;
+import com.intellij.ui.JBColor;
+import com.intellij.ui.components.JBLabel;
 
 import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
@@ -27,10 +28,10 @@ import java.awt.*;
 
 class ErrorPanel extends JPanel {
 
-    ErrorPanel(final Exception ex) {
+    public ErrorPanel(final Exception ex) {
         setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
-        setBackground(GuiUtils.ERROR_COLOR);
-        add(new JLabel("Error during query execution"));
+        setBackground(JBColor.RED);
+        add(new JBLabel("Error during query execution"));
         final HoverHyperlinkLabel hoverHyperlinkLabel = new HoverHyperlinkLabel("more detail...");
         hoverHyperlinkLabel.addHyperlinkListener(new HyperlinkListener() {
             @Override

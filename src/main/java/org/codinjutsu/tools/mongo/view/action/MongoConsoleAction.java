@@ -34,7 +34,7 @@ public class MongoConsoleAction extends AnAction implements DumbAware {
     private final MongoExplorerPanel mongoExplorerPanel;
 
     public MongoConsoleAction(MongoExplorerPanel mongoExplorerPanel) {
-        super("Mongo Shell...", "Mongo Shell", GuiUtils.loadIcon("toolConsole.png"));
+        super("Mongo Shell...", "Select a database to enable it", GuiUtils.loadIcon("toolConsole.png"));
         this.mongoExplorerPanel = mongoExplorerPanel;
     }
 
@@ -50,7 +50,8 @@ public class MongoConsoleAction extends AnAction implements DumbAware {
 
         MongoConfiguration configuration = MongoConfiguration.getInstance(project);
 
-        e.getPresentation().setVisible(configuration != null && StringUtils.isNotBlank(configuration.getShellPath()));
+        e.getPresentation().setVisible(configuration != null && StringUtils.isNotBlank(configuration.getShellPath())
+                && mongoExplorerPanel.getConfiguration() != null && mongoExplorerPanel.getConfiguration().isSingleServer());
         e.getPresentation().setEnabled(mongoExplorerPanel.getSelectedDatabase() != null);
     }
 

@@ -1,5 +1,63 @@
+Version 0.8
+    * [fix] #123 cannot connect when user database is not set
+
+Version 0.7.6
+    * Idea 2016
+
+Version 0.7.5
+    * Idea 15
+
+Version 0.7.4
+    * [fix] Open Settings action
+    * [fix] Mongo Shell command launching
+    * [add] Server Settings: ReadPreference option
+    * [add] Server Settings: Copy Server action (PR #141, thanks kocherovf)
+    * [add] Explorer panel: speed search on databases and collections (thanks kocherovf)
+
+Version 0.7.3
+    * [update] Compatibility with the latest Jetbrains IDE (Idea 15, Webstorm 11, etc.)
+
+Version 0.7.2
+    * [fix] better mongo 3 compatibility
+    * [update] Improve UI reactivity
+    * [update] Settings: remove set database single access checkbox (its usage was unclear)
+    * [update] Explorer: remove Refresh all servers action (its usage was unclear)
+    * [add] Auth mechanism choice in the configuration panel
+
+Version 0.7.1
+    * [fix] compatibility with Idea 14.1 and latest jetbrains product version (thx pwilkin)
+    * [upd] migrate to mongo driver 3.0
+
+Version 0.7.0
+    * [fix] compatibility with Idea 14, Webstorm 9 products
+    * [fix] Idea violation when using mongo operator completion
+    * [fix] #97 UnsupportedOperationException viewing collection
+    * [fix] javascript file detection for executing script in Idea 13.1 UI
+    * [fix] #81 Use User Database as authentication database
+    * [add] Document edition: DateTimePicker
+    * [add] Redesign query panel
+    * [add] #99 Date are displayed and edited in UTC
+    * [add] #90 SSL Support for mongo connection (not tested)
+    * [add] #82 reload resulset after document deletion or modification
+    * [add] Drop database and collection actions (caution!)
+    * [upd] Better support of Darcula/Intellij themes
+    * [upd] Document edition: Enlarge Add Key/Value Dialog default width
+    * [upd] adapt authentication code after migration of mongo-java-driver to version 2.12.2
+
+Version 0.6.1
+    * [fix] javascript file detection for executing script
+
+Version 0.6.0
+    * [update] Results are displayed in a standard editor tab (like any file)
+    * [fix] #77 Long are incorrectly displayed when editing a document
+    * [fix] #78 Cannot edit documents that have custom _id
+    * [fix] #69 Cannot edit number value
+    * [fix] #54 #58 Test Connection Button does not properly work
+    * [add] #68 Ability to run a file
+    * [add] #61 Replica Set support
+
 Version 0.5.2
-    * [fix] API error wehen opening the Add Dialog
+    * [fix] API error when opening the Add Dialog
 
 Version 0.5.1
     * [fix] #57 Fatal Error with new releases of Jebrains products(Webstorm 7, Idea 13, etc.) due to some API changes

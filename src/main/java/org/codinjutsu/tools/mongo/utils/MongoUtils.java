@@ -22,6 +22,8 @@ import com.intellij.execution.process.CapturingProcessHandler;
 import com.intellij.execution.process.ProcessOutput;
 import com.intellij.openapi.vfs.CharsetToolkit;
 import com.mongodb.util.JSON;
+import org.codinjutsu.tools.mongo.ServerConfiguration;
+import org.codinjutsu.tools.mongo.model.MongoDatabase;
 import org.codinjutsu.tools.mongo.view.model.JsonDataType;
 
 import static org.apache.commons.lang.StringUtils.isBlank;
@@ -44,35 +46,7 @@ public class MongoUtils {
         return result.getExitCode() == 0;
     }
 
-    public static Object parseValue(JsonDataType jsonDataType, String value) {
-        if (JsonDataType.NULL.equals(jsonDataType)) {
-            return null;
-        }
-
-        if (JsonDataType.STRING.equals(jsonDataType)) {
-            return value;
-        }
-
-        if (JsonDataType.BOOLEAN.equals(jsonDataType)) {
-            return Boolean.parseBoolean(value);
-        }
-
-        if (JsonDataType.NUMBER.equals(jsonDataType)) {
-            Double doubleValue = Double.parseDouble(value);
-            if (Math.ceil(doubleValue) == doubleValue) {
-                return Integer.parseInt(value);
-            }
-            return doubleValue;
-        }
-
-        if (JsonDataType.OBJECT.equals(jsonDataType)) {
-            return JSON.parse(value);
-        }
-
-        if (JsonDataType.ARRAY.equals(jsonDataType)) {
-            return JSON.parse(value);
-        }
-
-        throw new IllegalStateException("Unknown datatype: " + jsonDataType);
+    public static String buildMongoUrl(ServerConfiguration serverConfiguration, MongoDatabase database) {
+        return String.format("%s/%s", serverConfiguration.getServerUrls().get(0), database == null ? "test" : database.getName());
     }
 }

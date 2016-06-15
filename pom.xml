@@ -1,24 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.codinjutsu.tools.mongo</groupId>
     <artifactId>mongo4idea</artifactId>
-    <version>0.5.2-SNAPSHOT</version>
+    <version>0.8.0-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-        <maven.compiler.source>1.6</maven.compiler.source>
-        <maven.compiler.target>1.6</maven.compiler.target>
-
-        <intellij.sdk.name>117.963</intellij.sdk.name>
-        <intellij.sdk.version>11.1.4</intellij.sdk.version>
-
-        <intellij.lib.path>/home/dboissier/applications/idea-IU-117.117/lib</intellij.lib.path>
-
-        <release.dir>file:////home/dboissier/incubator/distribution/maven/m2/inhouse</release.dir>
-        <snapshot.dir>file:///home/dboissier/incubator/distribution/maven/m2/inhouse-snapshot</snapshot.dir>
     </properties>
 
     <packaging>jar</packaging>
@@ -43,9 +33,13 @@
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongo-java-driver</artifactId>
-            <version>2.10.1</version>
+            <version>3.0.4</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>1.7.12</version>
+        </dependency>
         <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
@@ -64,29 +58,13 @@
         </dependency>
         <dependency>
             <groupId>com.intellij</groupId>
-            <artifactId>idea-openapi</artifactId>
+            <artifactId>openapi</artifactId>
             <version>${intellij.sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.intellij</groupId>
-            <artifactId>idea-util</artifactId>
+            <artifactId>util</artifactId>
             <version>${intellij.sdk.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.intellij</groupId>
-            <artifactId>idea-idea</artifactId>
-            <version>${intellij.sdk.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.intellij</groupId>
-            <artifactId>idea-extensions</artifactId>
-            <version>${intellij.sdk.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.intellij</groupId>
-            <artifactId>idea-resources</artifactId>
-            <version>${intellij.sdk.version}</version>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- Test dependencies -->
@@ -104,14 +82,14 @@
         </dependency>
         <dependency>
             <groupId>org.easytesting</groupId>
-            <artifactId>fest-swing</artifactId>
-            <version>1.2</version>
+            <artifactId>fest-util</artifactId>
+            <version>1.1.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.easytesting</groupId>
-            <artifactId>fest-util</artifactId>
-            <version>1.1.3</version>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-swing-junit</artifactId>
+            <version>2.2.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -120,34 +98,76 @@
             <version>1.4</version>
             <scope>test</scope>
         </dependency>
-        
-        <!-- IntelliJ SDK -->
+
+        <!-- IntelliJ SDK dependencies -->
         <dependency>
             <groupId>com.intellij</groupId>
-            <artifactId>idea-trove4j</artifactId>
+            <artifactId>idea</artifactId>
+            <scope>system</scope>
+            <systemPath>${intellij.lib.path}/idea.jar</systemPath>
+            <version>${intellij.sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.intellij</groupId>
+            <artifactId>extensions</artifactId>
+            <scope>system</scope>
+            <systemPath>${intellij.lib.path}/extensions.jar</systemPath>
+            <version>${intellij.sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.intellij</groupId>
+            <artifactId>icons</artifactId>
+            <scope>system</scope>
+            <systemPath>${intellij.lib.path}/icons.jar</systemPath>
+            <version>${intellij.sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.intellij</groupId>
+            <artifactId>trove4j</artifactId>
             <scope>system</scope>
             <systemPath>${intellij.lib.path}/trove4j.jar</systemPath>
             <version>${intellij.sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.intellij</groupId>
-            <artifactId>idea-annotations</artifactId>
+            <artifactId>annotations</artifactId>
             <scope>system</scope>
             <systemPath>${intellij.lib.path}/annotations.jar</systemPath>
             <version>${intellij.sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.intellij</groupId>
-            <artifactId>idea-jdom</artifactId>
+            <artifactId>jdom</artifactId>
             <scope>system</scope>
             <systemPath>${intellij.lib.path}/jdom.jar</systemPath>
             <version>${intellij.sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.intellij</groupId>
-            <artifactId>idea-swingx-core</artifactId>
+            <artifactId>swingx-core</artifactId>
             <scope>system</scope>
             <systemPath>${intellij.lib.path}/swingx-core-1.6.2.jar</systemPath>
+            <version>${intellij.sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.intellij</groupId>
+            <artifactId>jna</artifactId>
+            <scope>system</scope>
+            <systemPath>${intellij.lib.path}/jna.jar</systemPath>
+            <version>${intellij.sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.intellij</groupId>
+            <artifactId>resources</artifactId>
+            <scope>system</scope>
+            <systemPath>${intellij.lib.path}/resources.jar</systemPath>
+            <version>${intellij.sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.intellij</groupId>
+            <artifactId>resources_en</artifactId>
+            <scope>system</scope>
+            <systemPath>${intellij.lib.path}/resources_en.jar</systemPath>
             <version>${intellij.sdk.version}</version>
         </dependency>
     </dependencies>
@@ -191,67 +211,56 @@
                     </descriptors>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-idea-plugin</artifactId>
-                <version>2.2</version>
-                <configuration>
-                    <ideaPlugin>true</ideaPlugin>
-                    <jdkName>${intellij.sdk.name}</jdkName>
-                    <downloadSources>true</downloadSources>
-                    <dependenciesAsLibraries>true</dependenciesAsLibraries>
-                    <libraries>
-                        <library>
-                            <name>idea-annotations</name>
-                            <exclude>true</exclude>
-                        </library>
-                        <library>
-                            <name>idea-jdom</name>
-                            <exclude>true</exclude>
-                        </library>
-                        <library>
-                            <name>idea</name>
-                            <exclude>true</exclude>
-                        </library>
-                        <library>
-                            <name>idea-trove4j</name>
-                            <exclude>true</exclude>
-                        </library>
-                        <library>
-                            <name>idea-util</name>
-                            <exclude>true</exclude>
-                        </library>
-                        <library>
-                            <name>idea-extensions</name>
-                            <exclude>true</exclude>
-                        </library>
-                        <library>
-                            <name>idea-openapi</name>
-                            <exclude>true</exclude>
-                        </library>
-                    </libraries>
-                </configuration>
-            </plugin>
         </plugins>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
-            </resource>
-            <resource>
-                <directory>src/main/resources-filtered</directory>
-                <filtering>true</filtering>
             </resource>
         </resources>
         <testResources>
             <testResource>
                 <directory>src/test/resources</directory>
             </testResource>
-            <testResource>
-                <directory>src/test/resources-filtered</directory>
-                <filtering>true</filtering>
-            </testResource>
         </testResources>
     </build>
+    <profiles>
+        <profile>
+            <id>idea-14</id>
+            <properties>
+                <maven.compiler.source>1.7</maven.compiler.source>
+                <maven.compiler.target>1.7</maven.compiler.target>
+                <intellij.sdk.name>141.1532.4</intellij.sdk.name>
+                <intellij.sdk.version>14.1</intellij.sdk.version>
+                <intellij.lib.path>/Users/dboissier/dev/IntellijSDK/idea-IC-${intellij.sdk.name}/lib</intellij.lib.path>
+                <plugin.min.version>141.0</plugin.min.version>
+                <plugin.max.version>141.9999</plugin.max.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>idea-15</id>
+            <properties>
+                <maven.compiler.source>1.7</maven.compiler.source>
+                <maven.compiler.target>1.7</maven.compiler.target>
+                <intellij.sdk.name>143.2332.3</intellij.sdk.name>
+                <intellij.sdk.version>15.0</intellij.sdk.version>
+                <intellij.lib.path>/Users/dboissier/dev/IntellijSDK/idea-IC-${intellij.sdk.name}/lib</intellij.lib.path>
+                <plugin.min.version>143.0</plugin.min.version>
+                <plugin.max.version>143.9999</plugin.max.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>idea-2016</id>
+            <properties>
+                <maven.compiler.source>1.8</maven.compiler.source>
+                <maven.compiler.target>1.8</maven.compiler.target>
+                <intellij.sdk.name>145.597.3</intellij.sdk.name>
+                <intellij.sdk.version>2016</intellij.sdk.version>
+                <intellij.lib.path>/Users/dboissier/dev/IntellijSDK/idea-IC-${intellij.sdk.name}/lib</intellij.lib.path>
+                <plugin.min.version>145.0</plugin.min.version>
+                <plugin.max.version>149.9999</plugin.max.version>
+            </properties>
+        </profile>
+    </profiles>
 
     <!--
       { License Information
@@ -263,20 +272,9 @@
         </license>
     </licenses>
 
-    <distributionManagement>
-        <repository>
-            <id>scp-repository</id>
-            <url>${release.dir}</url>
-        </repository>
-        <snapshotRepository>
-            <id>scp-repository</id>
-            <url>${snapshot.dir}</url>
-        </snapshotRepository>
-    </distributionManagement>
-
     <!--
       | SCM Information
--->
+    -->
 
     <scm>
         <connection>scm:git:ssh://git@github.com/dboissier/mongo4idea.git</connection>

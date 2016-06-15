@@ -16,7 +16,6 @@
 
 package org.codinjutsu.tools.mongo.model;
 
-import org.apache.commons.lang.StringUtils;
 import org.codinjutsu.tools.mongo.ServerConfiguration;
 
 import java.util.LinkedList;
@@ -25,10 +24,11 @@ import java.util.List;
 public class MongoServer {
 
     public enum Status {
-        OK, ERROR
+        OK, LOADING, ERROR
     }
 
-    private final List<MongoDatabase> databases = new LinkedList<MongoDatabase>();
+    private List<MongoDatabase> databases = new LinkedList<MongoDatabase>();
+
     private final ServerConfiguration configuration;
 
     private Status status = Status.OK;
@@ -37,28 +37,16 @@ public class MongoServer {
         this.configuration = configuration;
     }
 
-    public String getServerName() {
-        return configuration.getServerName();
-    }
-
-    public int getServerPort() {
-        return configuration.getServerPort();
-    }
-
-    public String getUsername() {
-        return configuration.getUsername();
-    }
-
-    public String getPassword() {
-        return configuration.getPassword();
+    public List<String> getServerUrls() {
+        return configuration.getServerUrls();
     }
 
     public String getLabel() {
         return configuration.getLabel();
     }
 
-    public void addDatabase(MongoDatabase mongoDatabase) {
-        databases.add(mongoDatabase);
+    public void setDatabases(List<MongoDatabase> databases) {
+        this.databases = databases;
     }
 
     public boolean hasDatabases() {
@@ -77,22 +65,7 @@ public class MongoServer {
         this.status = status;
     }
 
-    public static boolean isCompliantWithPipelineOperations(String serverVersion) {
-
-        if (StringUtils.isBlank(serverVersion)) {
-            return false;
-        }
-
-        String[] versionNumbers = StringUtils.split(serverVersion, ".");
-
-        return Integer.parseInt(versionNumbers[0]) >= 2 && Integer.parseInt(versionNumbers[1]) >= 2;
-    }
-
     public ServerConfiguration getConfiguration() {
         return configuration;
-    }
-
-    public void clearAllDatabases() {
-        databases.clear();
     }
 }

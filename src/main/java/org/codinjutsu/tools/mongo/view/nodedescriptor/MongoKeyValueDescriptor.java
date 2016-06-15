@@ -21,17 +21,69 @@ import com.intellij.ui.ColoredTreeCellRenderer;
 import com.intellij.ui.SimpleTextAttributes;
 import com.mongodb.DBObject;
 import org.bson.types.ObjectId;
+import org.codinjutsu.tools.mongo.utils.DateUtils;
 import org.codinjutsu.tools.mongo.utils.StringUtils;
+import org.codinjutsu.tools.mongo.view.style.StyleAttributesProvider;
+
+import java.text.DateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class MongoKeyValueDescriptor implements MongoNodeDescriptor {
 
     private static final String STRING_SURROUNDED = "\"%s\"";
-    private static final String TO_STRING_TEMPLATE = "{ \"%s\" : %s}";
+    protected static final String TO_STRING_TEMPLATE = "\"%s\" : %s";
 
     protected final String key;
     protected Object value;
 
     private final SimpleTextAttributes valueTextAttributes;
+
+    public static MongoKeyValueDescriptor createDescriptor(String key, Object value) {
+        if (value == null) {
+            return new MongoKeyNullValueDescriptor(key);
+        }
+
+        if (value instanceof Boolean) {
+            return new MongoKeyValueDescriptor(key, value, StyleAttributesProvider.getBooleanAttribute()) {
+                @Override
+                public void setValue(Object value) {
+                    this.value = Boolean.valueOf((String) value);
+                }
+            };
+        } else if (value instanceof Integer) {
+            return new MongoKeyValueDescriptor(key, value, StyleAttributesProvider.getNumberAttribute()) {
+                @Override
+                public void setValue(Object value) {
+                    this.value = Integer.valueOf((String) value);
+                }
+            };
+        } else if (value instanceof Double) {
+            return new MongoKeyValueDescriptor(key, value, StyleAttributesProvider.getNumberAttribute()) {
+                @Override
+                public void setValue(Object value) {
+                    this.value = Double.valueOf((String) value);
+                }
+            };
+        } else if (value instanceof Long) {
+            return new MongoKeyValueDescriptor(key, value, StyleAttributesProvider.getNumberAttribute()) {
+                @Override
+                public void setValue(Object value) {
+                    this.value = Long.valueOf((String) value);
+                }
+            };
+        } else if (value instanceof String) {
+            return new MongoKeyStringValueDescriptor(key, (String) value);
+        } else if (value instanceof Date) {
+            return new MongoKeyDateValueDescriptor(key, (Date) value);
+        } else if (value instanceof ObjectId) {
+            return new MongoKeyValueDescriptor(key, value, StyleAttributesProvider.getObjectIdAttribute());
+        } else if (value instanceof DBObject) {
+            return new MongoKeyValueDescriptor(key, value, StyleAttributesProvider.getDBObjectAttribute());
+        } else {
+            return new MongoKeyValueDescriptor(key, value, StyleAttributesProvider.getStringAttribute());
+        }
+    }
 
     private MongoKeyValueDescriptor(String key, Object value, SimpleTextAttributes valueTextAttributes) {
         this.key = key;
@@ -46,14 +98,13 @@ public class MongoKeyValueDescriptor implements MongoNodeDescriptor {
     }
 
     public void renderNode(ColoredTreeCellRenderer cellRenderer) {
-        cellRenderer.append(getFormattedKey(), TEXT_ATTRIBUTES_PROVIDER.getKeyValueAttribute());
+        cellRenderer.append(getFormattedKey(), StyleAttributesProvider.getKeyValueAttribute());
     }
 
     public String getFormattedKey() {
         return String.format(STRING_SURROUNDED, key);
     }
 
-    @Override
     public String getFormattedValue() {
         return getValueAndAbbreviateIfNecessary();
     }
@@ -83,11 +134,10 @@ public class MongoKeyValueDescriptor implements MongoNodeDescriptor {
         return stringifiedValue;
     }
 
-
     private static class MongoKeyNullValueDescriptor extends MongoKeyValueDescriptor {
 
         private MongoKeyNullValueDescriptor(String key) {
-            super(key, null, TEXT_ATTRIBUTES_PROVIDER.getNullAttribute());
+            super(key, null, StyleAttributesProvider.getNullAttribute());
         }
 
         protected String getValueAndAbbreviateIfNecessary() {
@@ -95,15 +145,15 @@ public class MongoKeyValueDescriptor implements MongoNodeDescriptor {
         }
     }
 
-
     private static class MongoKeyStringValueDescriptor extends MongoKeyValueDescriptor {
 
-        private static final String TO_STRING_FOR_STRING_VALUE_TEMPLATE = "{ \"%s\" : \"%s\"}";
+        private static final String TO_STRING_FOR_STRING_VALUE_TEMPLATE = "\"%s\" : \"%s\"";
 
         private MongoKeyStringValueDescriptor(String key, String value) {
-            super(key, value, TEXT_ATTRIBUTES_PROVIDER.getStringAttribute());
+            super(key, value, StyleAttributesProvider.getStringAttribute());
         }
 
+        @Override
         protected String getValueAndAbbreviateIfNecessary() {
             return String.format(STRING_SURROUNDED, value);
         }
@@ -114,40 +164,28 @@ public class MongoKeyValueDescriptor implements MongoNodeDescriptor {
         }
     }
 
-    public static MongoKeyValueDescriptor createDescriptor(String key, Object value) {
-        if (value == null) {
-            return new MongoKeyNullValueDescriptor(key);
+    private static class MongoKeyDateValueDescriptor extends MongoKeyValueDescriptor {
+
+        private static final DateFormat DATE_FORMAT = DateUtils.utcDateTime(Locale.getDefault());
+
+        private static final String TO_STRING_FOR_DATE_VALUE_TEMPLATE = "\"%s\" : \"%s\"";
+
+        private MongoKeyDateValueDescriptor(String key, Date value) {
+            super(key, value, StyleAttributesProvider.getStringAttribute());
         }
 
-        if (value instanceof Boolean) {
-            return new MongoKeyValueDescriptor(key, value, TEXT_ATTRIBUTES_PROVIDER.getBooleanAttribute()) {
-                @Override
-                public void setValue(Object value) {
-                    this.value = Boolean.valueOf((String) value);
-                }
-            };
-        } else if (value instanceof Integer) {
-            return new MongoKeyValueDescriptor(key, value, TEXT_ATTRIBUTES_PROVIDER.getNumberAttribute()) {
-                @Override
-                public void setValue(Object value) {
-                    this.value = Integer.valueOf((String) value);
-                }
-            };
-        } else if (value instanceof Double) {
-            return new MongoKeyValueDescriptor(key, value, TEXT_ATTRIBUTES_PROVIDER.getNumberAttribute()) {
-                @Override
-                public void setValue(Object value) {
-                    this.value = Double.valueOf((String) value);
-                }
-            };
-        } else if (value instanceof String) {
-            return new MongoKeyStringValueDescriptor(key, (String) value);
-        } else if (value instanceof ObjectId) {
-            return new MongoKeyValueDescriptor(key, value, TEXT_ATTRIBUTES_PROVIDER.getObjectIdAttribute());
-        } else if (value instanceof DBObject) {
-            return new MongoKeyValueDescriptor(key, value, TEXT_ATTRIBUTES_PROVIDER.getDBObjectAttribute());
-        } else {
-            return new MongoKeyValueDescriptor(key, value, TEXT_ATTRIBUTES_PROVIDER.getStringAttribute());
+        @Override
+        protected String getValueAndAbbreviateIfNecessary() {
+            return getFormattedDate();
+        }
+
+        @Override
+        public String toString() {
+            return String.format(TO_STRING_FOR_DATE_VALUE_TEMPLATE, key, getFormattedDate());
+        }
+
+        private String getFormattedDate() {
+            return DATE_FORMAT.format(value);
         }
     }
 }

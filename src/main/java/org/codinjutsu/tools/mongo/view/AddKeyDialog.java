@@ -18,10 +18,8 @@ package org.codinjutsu.tools.mongo.view;
 
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.ValidationInfo;
-import com.mongodb.util.JSON;
-import com.mongodb.util.JSONParseException;
 import org.apache.commons.lang.StringUtils;
-import org.codinjutsu.tools.mongo.view.model.JsonDataType;
+import org.codinjutsu.tools.mongo.utils.GuiUtils;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
@@ -35,8 +33,9 @@ public class AddKeyDialog extends AbstractAddDialog {
     private JPanel valuePanel;
     private JPanel mainPanel;
 
-    public AddKeyDialog(MongoEditionPanel mongoEditionPanel) {
+    private AddKeyDialog(MongoEditionPanel mongoEditionPanel) {
         super(mongoEditionPanel);
+        mainPanel.setPreferredSize(GuiUtils.enlargeWidth(mainPanel.getPreferredSize(), 1.5d));
         valuePanel.setLayout(new BorderLayout());
         nameTextfield.setName("keyName");
         typeCombobox.setName("valueType");
@@ -74,25 +73,19 @@ public class AddKeyDialog extends AbstractAddDialog {
             return new ValidationInfo(String.format("Key '%s' is already used", keyName));
         }
 
-        JsonDataType dataType = getJsonDataType();
-        if (JsonDataType.NULL.equals(dataType)) {
-            return null;
-        }
-
-        String value = getValue();
-        if (JsonDataType.NUMBER.equals(dataType) && StringUtils.isEmpty(value)) {
-            return new ValidationInfo("Key value is not set");
-        }
-
-        if (JsonDataType.OBJECT.equals(dataType)) {
-            try {
-                JSON.parse(value);
-            } catch (JSONParseException e) {
-                return new ValidationInfo("Invalid JSON object");
-            }
+        try {
+            currentEditor.validate();
+        } catch (Exception ex) {
+            return new ValidationInfo(ex.getMessage());
         }
 
         return null;
+    }
+
+    @Nullable
+    @Override
+    public JComponent getPreferredFocusedComponent() {
+        return nameTextfield;
     }
 
     public String getKey() {
@@ -100,7 +93,7 @@ public class AddKeyDialog extends AbstractAddDialog {
     }
 
     @Override
-    public String getValue() {
+    public Object getValue() {
         return currentEditor.getValue();
     }
 }

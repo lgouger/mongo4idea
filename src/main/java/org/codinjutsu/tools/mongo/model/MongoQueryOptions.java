@@ -16,23 +16,25 @@
 
 package org.codinjutsu.tools.mongo.model;
 
+import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.util.JSON;
 import org.apache.commons.lang.StringUtils;
 
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
 public class MongoQueryOptions {
 
-    public static final int DEFAULT_RESULT_LIMIT = 300;
+    private static final int DEFAULT_RESULT_LIMIT = 300;
 
     private static final BasicDBObject EMPTY_FILTER = new BasicDBObject();
-    private final List<DBObject> operations = new LinkedList<DBObject>();
+    private final List<Object> operations = new LinkedList<Object>();
 
     private DBObject filter = EMPTY_FILTER;
+    private DBObject projection = null;
+    private DBObject sort;
 
     private int resultLimit = DEFAULT_RESULT_LIMIT;
 
@@ -40,31 +42,14 @@ public class MongoQueryOptions {
         return !operations.isEmpty();
     }
 
-
-    public void addQuery(MongoAggregateOperator operator, String query) {
-        if (!StringUtils.isBlank(query)) {
-            operations.add(
-                    new BasicDBObject(
-                            operator.getLabel(),
-                            operator.getOperatorValueConverter().convert(query)
-                    )
-            );
-        }
+    public List getOperations() {
+        return operations;
     }
 
-    public DBObject getFirstOperation() {
-        if (isAggregate()) {
-            return operations.get(0);
-        }
-        return null;
-    }
-
-    public List<DBObject> getOperationsExceptTheFirst() {
-        if (operations.size() > 1) {
-            return operations.subList(1, operations.size());
-        }
-
-        return Collections.emptyList();
+    public void setOperations(String aggregateQuery) {
+        operations.clear();
+        BasicDBList operations = (BasicDBList) JSON.parse(aggregateQuery);
+        this.operations.addAll(operations);
     }
 
     public void setFilter(String query) {
@@ -77,8 +62,25 @@ public class MongoQueryOptions {
         return filter;
     }
 
-    public List<DBObject> getAllOperations() {
-        return operations;
+    public void setProjection(String query) {
+        if (!StringUtils.isBlank(query)) {
+            projection = (DBObject) JSON.parse(query);
+        }
+    }
+
+
+    public DBObject getProjection() {
+        return projection;
+    }
+
+    public void setSort(String query) {
+        if (!StringUtils.isBlank(query)) {
+            sort = (DBObject) JSON.parse(query);
+        }
+    }
+
+    public DBObject getSort() {
+        return sort;
     }
 
     public int getResultLimit() {

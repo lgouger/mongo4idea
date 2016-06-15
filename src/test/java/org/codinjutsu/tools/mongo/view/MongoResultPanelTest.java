@@ -18,27 +18,22 @@ package org.codinjutsu.tools.mongo.view;
 
 import com.intellij.openapi.command.impl.DummyProject;
 import com.intellij.util.ui.tree.TreeUtil;
-import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.util.JSON;
-import junit.framework.Assert;
 import org.apache.commons.io.IOUtils;
-import org.bson.types.ObjectId;
+import org.assertj.swing.driver.BasicJTableCellReader;
+import org.assertj.swing.edt.GuiActionRunner;
+import org.assertj.swing.edt.GuiQuery;
+import org.assertj.swing.fixture.Containers;
+import org.assertj.swing.fixture.FrameFixture;
+import org.assertj.swing.fixture.JTableFixture;
 import org.codinjutsu.tools.mongo.model.MongoCollectionResult;
 import org.codinjutsu.tools.mongo.view.nodedescriptor.MongoNodeDescriptor;
-import org.fest.swing.data.TableCell;
-import org.fest.swing.driver.BasicJTableCellReader;
-import org.fest.swing.edt.GuiActionRunner;
-import org.fest.swing.edt.GuiQuery;
-import org.fest.swing.fixture.Containers;
-import org.fest.swing.fixture.FrameFixture;
-import org.fest.swing.fixture.JTableFixture;
+import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import javax.swing.*;
@@ -53,7 +48,7 @@ public class MongoResultPanelTest {
     private FrameFixture frameFixture;
 
     @Mock
-    private MongoRunnerPanel.MongoDocumentOperations mongoDocumentOperations;
+    private MongoPanel.MongoDocumentOperations mongoDocumentOperations;
 
     @After
     public void tearDown() {
@@ -81,8 +76,7 @@ public class MongoResultPanelTest {
     public void displayTreeWithASimpleArray() throws Exception {
         mongoResultPanel.updateResultTableTree(createCollectionResults("simpleArray.json", "mycollec"));
 
-        frameFixture.table("resultTreeTable").cellReader(new JsonTableCellReader())
-                .requireColumnCount(2)
+        getResultTable().requireColumnCount(2)
                 .requireContents(new String[][]{
                         {"[0]", "\"toto\""},
                         {"[1]", "true"},
@@ -95,8 +89,7 @@ public class MongoResultPanelTest {
     public void testDisplayTreeWithASimpleDocument() throws Exception {
         mongoResultPanel.updateResultTableTree(createCollectionResults("simpleDocument.json", "mycollec"));
 
-        frameFixture.table("resultTreeTable").cellReader(new JsonTableCellReader())
-                .requireColumnCount(2)
+        getResultTable().requireColumnCount(2)
                 .requireContents(new String[][]{
                         {"[0]", "{ \"id\" : 0 , \"label\" : \"toto\" , \"visible\" : false , \"image\" :  null }"},
                         {"\"id\"", "0"},
@@ -111,8 +104,7 @@ public class MongoResultPanelTest {
     public void testDisplayTreeWithAStructuredDocument() throws Exception {
         mongoResultPanel.updateResultTableTree(createCollectionResults("structuredDocument.json", "mycollec"));
         TreeUtil.expandAll(mongoResultPanel.resultTableView.getTree());
-        frameFixture.table("resultTreeTable").cellReader(new JsonTableCellReader())
-                .requireColumnCount(2)
+        getResultTable().requireColumnCount(2)
                 .requireContents(new String[][]{
                         {"[0]", "{ \"id\" : 0 , \"label\" : \"toto\" , \"visible\" : false , \"doc\" : { \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}}"},
                         {"\"id\"", "0"},
@@ -134,32 +126,31 @@ public class MongoResultPanelTest {
         mongoResultPanel.updateResultTableTree(createCollectionResults("arrayOfDocuments.json", "mycollec"));
 
         TreeUtil.expandAll(mongoResultPanel.resultTableView.getTree());
-        frameFixture.table("resultTreeTable").cellReader(new JsonTableCellReader())
-                .requireContents(new String[][]{
+        getResultTable().requireContents(new String[][]{
 
-                        {"[0]", "{ \"id\" : 0 , \"label\" : \"toto\" , \"visible\" : false , \"doc\" : { \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}}"},
-                        {"\"id\"", "0"},
-                        {"\"label\"", "\"toto\""},
-                        {"\"visible\"", "false"},
-                        {"\"doc\"", "{ \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}"},
-                        {"\"title\"", "\"hello\""},
-                        {"\"nbPages\"", "10"},
-                        {"\"keyWord\"", "[ \"toto\" , true , 10]"},
-                        {"[0]", "\"toto\""},
-                        {"[1]", "true"},
-                        {"[2]", "10"},
-                        {"[1]", "{ \"id\" : 1 , \"label\" : \"tata\" , \"visible\" : true , \"doc\" : { \"title\" : \"ola\" , \"nbPages\" : 1 , \"keyWord\" : [ \"tutu\" , false , 10]}}"},
-                        {"\"id\"", "1"},
-                        {"\"label\"", "\"tata\""},
-                        {"\"visible\"", "true"},
-                        {"\"doc\"", "{ \"title\" : \"ola\" , \"nbPages\" : 1 , \"keyWord\" : [ \"tutu\" , false , 10]}"},
-                        {"\"title\"", "\"ola\""},
-                        {"\"nbPages\"", "1"},
-                        {"\"keyWord\"", "[ \"tutu\" , false , 10]"},
-                        {"[0]", "\"tutu\""},
-                        {"[1]", "false"},
-                        {"[2]", "10"},
-                });
+                {"[0]", "{ \"id\" : 0 , \"label\" : \"toto\" , \"visible\" : false , \"doc\" : { \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}}"},
+                {"\"id\"", "0"},
+                {"\"label\"", "\"toto\""},
+                {"\"visible\"", "false"},
+                {"\"doc\"", "{ \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}"},
+                {"\"title\"", "\"hello\""},
+                {"\"nbPages\"", "10"},
+                {"\"keyWord\"", "[ \"toto\" , true , 10]"},
+                {"[0]", "\"toto\""},
+                {"[1]", "true"},
+                {"[2]", "10"},
+                {"[1]", "{ \"id\" : 1 , \"label\" : \"tata\" , \"visible\" : true , \"doc\" : { \"title\" : \"ola\" , \"nbPages\" : 1 , \"keyWord\" : [ \"tutu\" , false , 10]}}"},
+                {"\"id\"", "1"},
+                {"\"label\"", "\"tata\""},
+                {"\"visible\"", "true"},
+                {"\"doc\"", "{ \"title\" : \"ola\" , \"nbPages\" : 1 , \"keyWord\" : [ \"tutu\" , false , 10]}"},
+                {"\"title\"", "\"ola\""},
+                {"\"nbPages\"", "1"},
+                {"\"keyWord\"", "[ \"tutu\" , false , 10]"},
+                {"[0]", "\"tutu\""},
+                {"[1]", "false"},
+                {"[2]", "10"},
+        });
     }
 
     @Test
@@ -171,10 +162,10 @@ public class MongoResultPanelTest {
         assertEquals("{ \"id\" : 0 , \"label\" : \"toto\" , \"visible\" : false , \"doc\" : { \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}}", mongoResultPanel.getSelectedNodeStringifiedValue());
 
         mongoResultPanel.resultTableView.setRowSelectionInterval(2, 2);
-        assertEquals("{ \"label\" : \"toto\"}", mongoResultPanel.getSelectedNodeStringifiedValue());
+        assertEquals("\"label\" : \"toto\"", mongoResultPanel.getSelectedNodeStringifiedValue());
 
         mongoResultPanel.resultTableView.setRowSelectionInterval(4, 4);
-        assertEquals("{ \"doc\" : { \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}}", mongoResultPanel.getSelectedNodeStringifiedValue());
+        assertEquals("\"doc\" : { \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}", mongoResultPanel.getSelectedNodeStringifiedValue());
     }
 
     @Test
@@ -183,36 +174,35 @@ public class MongoResultPanelTest {
 
         TreeUtil.expandAll(mongoResultPanel.resultTableView.getTree());
 
-        frameFixture.table("resultTreeTable").cellReader(new JsonTableCellReader())
-                .requireContents(new String[][]{
-                        {"[0]", "{ \"id\" : 0 , \"label\" : \"toto\" , \"visible\" : false , \"doc\" : { \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}}"},
-                        {"\"id\"", "0"},
-                        {"\"label\"", "\"toto\""},
-                        {"\"visible\"", "false"},
-                        {"\"doc\"", "{ \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}"},
-                        {"\"title\"", "\"hello\""},
-                        {"\"nbPages\"", "10"},
-                        {"\"keyWord\"", "[ \"toto\" , true , 10]"},
-                        {"[0]", "\"toto\""},
-                        {"[1]", "true"},
-                        {"[2]", "10"},
-                        {"[1]", "{ \"id\" : 1 , \"label\" : \"tata\" , \"visible\" : true , \"doc\" : { \"title\" : \"ola\" , \"nbPages\" : 1 , \"keyWord\" : [ \"tutu\" , false , 10]}}"},
-                        {"\"id\"", "1"},
-                        {"\"label\"", "\"tata\""},
-                        {"\"visible\"", "true"},
-                        {"\"doc\"", "{ \"title\" : \"ola\" , \"nbPages\" : 1 , \"keyWord\" : [ \"tutu\" , false , 10]}"},
-                        {"\"title\"", "\"ola\""},
-                        {"\"nbPages\"", "1"},
-                        {"\"keyWord\"", "[ \"tutu\" , false , 10]"},
-                        {"[0]", "\"tutu\""},
-                        {"[1]", "false"},
-                        {"[2]", "10"},
-                });
+        getResultTable().requireContents(new String[][]{
+                {"[0]", "{ \"id\" : 0 , \"label\" : \"toto\" , \"visible\" : false , \"doc\" : { \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}}"},
+                {"\"id\"", "0"},
+                {"\"label\"", "\"toto\""},
+                {"\"visible\"", "false"},
+                {"\"doc\"", "{ \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}"},
+                {"\"title\"", "\"hello\""},
+                {"\"nbPages\"", "10"},
+                {"\"keyWord\"", "[ \"toto\" , true , 10]"},
+                {"[0]", "\"toto\""},
+                {"[1]", "true"},
+                {"[2]", "10"},
+                {"[1]", "{ \"id\" : 1 , \"label\" : \"tata\" , \"visible\" : true , \"doc\" : { \"title\" : \"ola\" , \"nbPages\" : 1 , \"keyWord\" : [ \"tutu\" , false , 10]}}"},
+                {"\"id\"", "1"},
+                {"\"label\"", "\"tata\""},
+                {"\"visible\"", "true"},
+                {"\"doc\"", "{ \"title\" : \"ola\" , \"nbPages\" : 1 , \"keyWord\" : [ \"tutu\" , false , 10]}"},
+                {"\"title\"", "\"ola\""},
+                {"\"nbPages\"", "1"},
+                {"\"keyWord\"", "[ \"tutu\" , false , 10]"},
+                {"[0]", "\"tutu\""},
+                {"[1]", "false"},
+                {"[2]", "10"},
+        });
 
         assertEquals("[ " +
-                "{ \"id\" : 0 , \"label\" : \"toto\" , \"visible\" : false , \"doc\" : { \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}} , " +
-                "{ \"id\" : 1 , \"label\" : \"tata\" , \"visible\" : true , \"doc\" : { \"title\" : \"ola\" , \"nbPages\" : 1 , \"keyWord\" : [ \"tutu\" , false , 10]}}" +
-                " ]",
+                        "{ \"id\" : 0 , \"label\" : \"toto\" , \"visible\" : false , \"doc\" : { \"title\" : \"hello\" , \"nbPages\" : 10 , \"keyWord\" : [ \"toto\" , true , 10]}} , " +
+                        "{ \"id\" : 1 , \"label\" : \"tata\" , \"visible\" : true , \"doc\" : { \"title\" : \"ola\" , \"nbPages\" : 1 , \"keyWord\" : [ \"tutu\" , false , 10]}}" +
+                        " ]",
                 mongoResultPanel.getSelectedNodeStringifiedValue());
     }
 
@@ -223,6 +213,13 @@ public class MongoResultPanelTest {
         mongoCollectionResult.add(jsonObject);
 
         return mongoCollectionResult;
+    }
+
+    @NotNull
+    private JTableFixture getResultTable() {
+        JTableFixture tableFixture = frameFixture.table("resultTreeTable");
+        tableFixture.replaceCellReader(new JsonTableCellReader());
+        return tableFixture;
     }
 
     private static class JsonTableCellReader extends BasicJTableCellReader {

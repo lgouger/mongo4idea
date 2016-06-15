@@ -1,0 +1,12 @@
+jdk:
+  - oraclejdk7
+services:
+  - mongodb
+env:
+  - DISPLAY=:99.0
+before_install:
+  - "./fetchIdea.sh"
+script: "./travis.sh"
+cache:
+  directories:
+  - idea-IC

@@ -20,20 +20,22 @@ package org.codinjutsu.tools.mongo.view.console;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.configurations.GeneralCommandLine;
 import com.intellij.execution.console.ConsoleHistoryController;
+import com.intellij.execution.console.ConsoleRootType;
+import com.intellij.execution.console.ProcessBackedConsoleExecuteActionHandler;
 import com.intellij.execution.process.OSProcessHandler;
 import com.intellij.execution.runners.AbstractConsoleRunnerWithHistory;
-import com.intellij.execution.runners.ConsoleExecuteActionHandler;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.intellij.psi.PsiFile;
+import com.mongodb.AuthenticationMechanism;
+import com.mongodb.ReadPreference;
 import org.apache.commons.lang.StringUtils;
 import org.codinjutsu.tools.mongo.MongoConfiguration;
 import org.codinjutsu.tools.mongo.ServerConfiguration;
 import org.codinjutsu.tools.mongo.model.MongoDatabase;
+import org.codinjutsu.tools.mongo.utils.MongoUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.tree.DefaultMutableTreeNode;
 
 
 public class MongoConsoleRunner extends AbstractConsoleRunnerWithHistory<MongoConsoleView> {
@@ -54,7 +56,7 @@ public class MongoConsoleRunner extends AbstractConsoleRunnerWithHistory<MongoCo
     protected MongoConsoleView createConsoleView() {
         MongoConsoleView res = new MongoConsoleView(getProject());
 
-        PsiFile file = res.getConsole().getFile();
+        PsiFile file = res.getFile();
         assert file.getContext() == null;
         file.putUserData(MONGO_SHELL_FILE, Boolean.TRUE);
 
@@ -64,13 +66,14 @@ public class MongoConsoleRunner extends AbstractConsoleRunnerWithHistory<MongoCo
     @Nullable
     @Override
     protected Process createProcess() throws ExecutionException {
+        String shellPath = MongoConfiguration.getInstance(getProject()).getShellPath();
+        return buildCommandLine(shellPath, serverConfiguration, database).createProcess();
+    }
 
-        MongoConfiguration mongoConfiguration = MongoConfiguration.getInstance(getProject());
-        String shellPath = mongoConfiguration.getShellPath();
-        final GeneralCommandLine commandLine = new GeneralCommandLine();
+    private static GeneralCommandLine buildCommandLine(String shellPath, ServerConfiguration serverConfiguration, MongoDatabase database) {
+        GeneralCommandLine commandLine = new GeneralCommandLine();
         commandLine.setExePath(shellPath);
-
-        commandLine.addParameter(String.format("%s:%s/%s", serverConfiguration.getServerName(), serverConfiguration.getServerPort(), database == null ? "test" : database.getName()));
+        commandLine.addParameter(MongoUtils.buildMongoUrl(serverConfiguration, database));
 
         String shellWorkingDir = serverConfiguration.getShellWorkingDir();
         if (StringUtils.isNotBlank(shellWorkingDir)) {
@@ -89,12 +92,30 @@ public class MongoConsoleRunner extends AbstractConsoleRunnerWithHistory<MongoCo
             commandLine.addParameter(password);
         }
 
-        String shellArgumentsLine = serverConfiguration.getShellArgumentsLine();
-        if (StringUtils.isNotBlank(shellArgumentsLine)) {
-            commandLine.addParameter(shellArgumentsLine);
+        String authenticationDatabase = serverConfiguration.getAuthenticationDatabase();
+        if (StringUtils.isNotBlank(authenticationDatabase)) {
+            commandLine.addParameter("--authenticationDatabase");
+            commandLine.addParameter(authenticationDatabase);
         }
 
-        return commandLine.createProcess();
+        AuthenticationMechanism authenticationMechanism = serverConfiguration.getAuthenticationMechanism();
+        if (authenticationMechanism != null) {
+            commandLine.addParameter("--authenticationMechanism");
+            commandLine.addParameter(authenticationMechanism.getMechanismName());
+        }
+
+//        ReadPreference readPreference = serverConfiguration.getReadPreference();
+//        if (readPreference != null) {
+//            commandLine.addParameter("--readPreference");
+//            commandLine.addParameter(readPreference.getName());
+//        }
+
+        String shellArgumentsLine = serverConfiguration.getShellArgumentsLine();
+        if (StringUtils.isNotBlank(shellArgumentsLine)) {
+            commandLine.addParameters(shellArgumentsLine.split(" "));
+        }
+
+        return commandLine;
     }
 
     @Override
@@ -104,16 +125,15 @@ public class MongoConsoleRunner extends AbstractConsoleRunnerWithHistory<MongoCo
 
     @NotNull
     @Override
-    protected ConsoleExecuteActionHandler createConsoleExecuteActionHandler() {
-        ConsoleExecuteActionHandler handler = new ConsoleExecuteActionHandler(getProcessHandler(), false) {
+    protected ProcessBackedConsoleExecuteActionHandler createExecuteActionHandler() {
+        ProcessBackedConsoleExecuteActionHandler handler = new ProcessBackedConsoleExecuteActionHandler(getProcessHandler(), false) {
             @Override
             public String getEmptyExecuteAction() {
                 return "Mongo.Shell.Execute";
             }
         };
-        new ConsoleHistoryController("Mongo Shell", null, getLanguageConsole(), handler.getConsoleHistoryModel()).install();
+        new ConsoleHistoryController(new ConsoleRootType("Mongo Shell", null) {
+        }, null, getConsoleView()).install();
         return handler;
     }
-
-
 }

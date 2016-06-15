@@ -16,102 +16,165 @@
 
 package org.codinjutsu.tools.mongo.view;
 
+import com.intellij.openapi.command.impl.DummyProject;
+import com.mongodb.AuthenticationMechanism;
+import com.mongodb.ReadPreference;
+import org.assertj.swing.edt.GuiActionRunner;
+import org.assertj.swing.edt.GuiQuery;
+import org.assertj.swing.fixture.Containers;
+import org.assertj.swing.fixture.FrameFixture;
 import org.codinjutsu.tools.mongo.ServerConfiguration;
+import org.codinjutsu.tools.mongo.logic.ConfigurationException;
 import org.codinjutsu.tools.mongo.logic.MongoManager;
-import org.fest.swing.edt.GuiActionRunner;
-import org.fest.swing.edt.GuiQuery;
-import org.fest.swing.fixture.Containers;
-import org.fest.swing.fixture.FrameFixture;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
+import java.util.Arrays;
+import java.util.Collections;
+
+import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ServerConfigurationPanelTest {
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     private ServerConfigurationPanel configurationPanel;
     private MongoManager mongoManager;
 
     private FrameFixture frameFixture;
 
-    @After
-    public void tearDown() {
-        frameFixture.cleanUp();
-    }
-
     @Before
     public void setUp() throws Exception {
         mongoManager = Mockito.spy(new MongoManager());
         configurationPanel = GuiActionRunner.execute(new GuiQuery<ServerConfigurationPanel>() {
             protected ServerConfigurationPanel executeInEDT() {
-                return new ServerConfigurationPanel(mongoManager);
+                return new ServerConfigurationPanel(DummyProject.getInstance(), mongoManager);
             }
         });
 
-        frameFixture = Containers.showInFrame(configurationPanel.getRootPanel());
+        frameFixture = Containers.showInFrame(configurationPanel);
+    }
+
+    @After
+    public void tearDown() {
+        frameFixture.cleanUp();
     }
 
     @Test
-    public void validateForm() throws Exception {
+    public void validateFormWithOneServerUrl() throws Exception {
 
-        frameFixture.textBox("serverNameField").setText("localhost");
-        frameFixture.textBox("serverPortField").setText("25");
+        frameFixture.textBox("serverUrlsField").setText("localhost:25");
+        frameFixture.checkBox("sslConnectionField").check();
+        frameFixture.comboBox("readPreferenceComboBox").requireSelection("primary");
+        frameFixture.comboBox("readPreferenceComboBox").selectItem("secondary");
+
         frameFixture.textBox("usernameField").setText("john");
         frameFixture.textBox("passwordField").setText("johnpassword");
+        frameFixture.radioButton("defaultAuthMethod").requireSelected();
+        frameFixture.radioButton("mongoCRAuthField").click();
+
+        frameFixture.textBox("userDatabaseField").setText("mydatabase");
+        frameFixture.checkBox("autoConnectField").check();
+
+
+        ServerConfiguration configuration = new ServerConfiguration();
+        configurationPanel.applyConfigurationData(configuration);
+
+        assertEquals(singletonList("localhost:25"), configuration.getServerUrls());
+        assertTrue(configuration.isSslConnection());
+        assertEquals(ReadPreference.secondary(), configuration.getReadPreference());
+        assertEquals("john", configuration.getUsername());
+        assertEquals("johnpassword", configuration.getPassword());
+        assertEquals("mydatabase", configuration.getUserDatabase());
+        assertEquals(AuthenticationMechanism.MONGODB_CR, configuration.getAuthenticationMechanism());
+        assertTrue(configuration.isConnectOnIdeStartup());
+    }
+
+    @Test
+    public void loadFormWithOneServerUrl() throws Exception {
+        ServerConfiguration configuration = new ServerConfiguration();
+        configuration.setServerUrls(Collections.singletonList("localhost:25"));
+        configuration.setUsername("john");
+        configuration.setPassword("johnpassword");
+        configuration.setReadPreference(ReadPreference.nearest());
+
+        configurationPanel.loadConfigurationData(configuration);
+
+        frameFixture.textBox("serverUrlsField").requireText("localhost:25");
+        frameFixture.textBox("usernameField").requireText("john");
+        frameFixture.textBox("passwordField").requireText("johnpassword");
+
+        frameFixture.comboBox("readPreferenceComboBox").requireSelection("nearest");
+    }
+
+    @Test
+    public void validateFormWithMissingMongoUrlShouldThrowAConfigurationException() {
+        thrown.expect(ConfigurationException.class);
+        thrown.expectMessage("URL(s) should be set");
+
+        frameFixture.textBox("serverUrlsField").setText(null);
+
+        configurationPanel.applyConfigurationData(new ServerConfiguration());
+    }
+
+    @Test
+    public void validateFormWithEmptyMongoUrlShouldThrowAConfigurationException() {
+        thrown.expect(ConfigurationException.class);
+        thrown.expectMessage("URL(s) should be set");
+
+        frameFixture.textBox("serverUrlsField").setText("");
+
+        configurationPanel.applyConfigurationData(new ServerConfiguration());
+    }
+
+    @Test
+    public void validateFormWithBadMongoUrlShouldThrowAConfigurationException() {
+        thrown.expect(ConfigurationException.class);
+        thrown.expectMessage("URL 'host' format is incorrect. It should be 'host:port'");
+
+        frameFixture.textBox("serverUrlsField").setText("host");
+
+        configurationPanel.applyConfigurationData(new ServerConfiguration());
+    }
+
+
+    @Test
+    public void validateFormWithBadMongoPortShouldThrowAConfigurationException() {
+        thrown.expect(ConfigurationException.class);
+        thrown.expectMessage("Port in the URL 'host:port' is incorrect. It should be a number");
+
+        frameFixture.textBox("serverUrlsField").setText("host:port");
+
+        configurationPanel.applyConfigurationData(new ServerConfiguration());
+    }
+
+
+    @Test
+    public void validateFormWithReplicatSet() throws Exception {
+
+        frameFixture.textBox("serverUrlsField").setText(" localhost:25, localhost:26 ");
 
         ServerConfiguration configuration = new ServerConfiguration();
 
         configurationPanel.applyConfigurationData(configuration);
 
-        assertEquals("localhost", configuration.getServerName());
-        assertEquals(25, configuration.getServerPort());
-        assertEquals("john", configuration.getUsername());
-        assertEquals("johnpassword", configuration.getPassword());
+        assertEquals(Arrays.asList("localhost:25", "localhost:26"), configuration.getServerUrls());
     }
 
     @Test
-    public void loadForm() throws Exception {
+    public void loadFormWithReplicatSet() throws Exception {
         ServerConfiguration configuration = new ServerConfiguration();
-        configuration.setServerName("localhost");
-        configuration.setServerPort(25);
-        configuration.setUsername("john");
-        configuration.setPassword("johnpassword");
+        configuration.setServerUrls(Arrays.asList("localhost:25", "localhost:26"));
 
         configurationPanel.loadConfigurationData(configuration);
 
-        frameFixture.textBox("serverNameField").requireText("localhost");
-        frameFixture.textBox("serverPortField").requireText("25");
-        frameFixture.textBox("usernameField").requireText("john");
-        frameFixture.textBox("passwordField").requireText("johnpassword");
-    }
-
-    @Test
-    public void connectionWithSuccess() {
-        ServerConfiguration configuration = new ServerConfiguration();
-        configuration.setServerName("localhost");
-        configuration.setServerPort(27017);
-
-        configurationPanel.loadConfigurationData(configuration);
-
-        frameFixture.button("testConnection").click();
-
-        Mockito.verify(mongoManager, Mockito.times(1)).connect("localhost", 27017, null, null, null);
-    }
-
-    @Test
-    public void connectionWithFailure() {
-        ServerConfiguration configuration = new ServerConfiguration();
-        configuration.setServerName("myserver");
-        configuration.setServerPort(25);
-
-        configurationPanel.loadConfigurationData(configuration);
-
-        frameFixture.button("testConnection").click();
-        frameFixture.label("feedbackLabel")
-                .requireText("java.net.UnknownHostException: myserver");
-
-        Mockito.verify(mongoManager, Mockito.times(1)).connect("myserver", 25, null, null, null);
+        frameFixture.textBox("serverUrlsField").requireText("localhost:25,localhost:26");
     }
 }

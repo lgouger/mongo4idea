@@ -20,18 +20,20 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import org.codinjutsu.tools.mongo.view.AddKeyDialog;
 import org.codinjutsu.tools.mongo.view.MongoEditionPanel;
-import org.codinjutsu.tools.mongo.view.style.StyleAttributesUtils;
+import org.codinjutsu.tools.mongo.view.style.StyleAttributesProvider;
 
 import javax.swing.*;
+import java.awt.event.KeyEvent;
 
 public class AddKeyAction extends AnAction {
 
-    private static final Icon ADD_ICON = StyleAttributesUtils.getInstance().getAddIcon();
+    private static final Icon ADD_ICON = StyleAttributesProvider.getAddIcon();
 
     private final MongoEditionPanel mongoEditionPanel;
 
     public AddKeyAction(MongoEditionPanel mongoEditionPanel) {
         super("Add a key", "Add a key", ADD_ICON);
+        registerCustomShortcutSet(KeyEvent.VK_INSERT, KeyEvent.ALT_MASK, mongoEditionPanel);
         this.mongoEditionPanel = mongoEditionPanel;
     }
 
@@ -44,11 +46,11 @@ public class AddKeyAction extends AnAction {
             return;
         }
 
-        mongoEditionPanel.addKey(dialog.getKey(), dialog.getJsonDataType(), dialog.getValue());
+        mongoEditionPanel.addKey(dialog.getKey(), dialog.getValue());
     }
 
     @Override
     public void update(AnActionEvent event) {
-        event.getPresentation().setVisible(mongoEditionPanel.canAddKey());
+//        event.getPresentation().setVisible(mongoEditionPanel.canAddKey());
     }
 }

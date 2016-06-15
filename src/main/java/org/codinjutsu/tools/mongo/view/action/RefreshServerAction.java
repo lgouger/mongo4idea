@@ -19,22 +19,46 @@ package org.codinjutsu.tools.mongo.view.action;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.DumbAware;
+import org.codinjutsu.tools.mongo.model.MongoServer;
+import org.codinjutsu.tools.mongo.utils.GuiUtils;
 import org.codinjutsu.tools.mongo.view.MongoExplorerPanel;
-import org.codinjutsu.tools.mongo.view.style.StyleAttributesUtils;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
+import javax.swing.tree.DefaultMutableTreeNode;
 
 public class RefreshServerAction extends AnAction implements DumbAware {
+
+    private static final Icon CONNECT_ICON = GuiUtils.loadIcon("connector.png", "connector_dark.png");
+    private static final Icon REFRESH_ICON = GuiUtils.loadIcon("refresh.png", "refresh_dark.png");
+    private static final String REFRESH_TEXT = "Refresh this server";
+    private static final String CONNECT_TEXT = "Connect to this server";
 
     private final MongoExplorerPanel mongoExplorerPanel;
 
     public RefreshServerAction(MongoExplorerPanel mongoExplorerPanel) {
-        super("Refresh this server");
+        super(REFRESH_TEXT);
         this.mongoExplorerPanel = mongoExplorerPanel;
     }
 
     @Override
-    public void actionPerformed(AnActionEvent anActionEvent) {
-        mongoExplorerPanel.reloadSelectedServerConfiguration();
+    public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
+        mongoExplorerPanel.reloadServerConfiguration(mongoExplorerPanel.getSelectedServerNode(), true);
+    }
+
+    @Override
+    public void update(@NotNull AnActionEvent event) {
+        DefaultMutableTreeNode selectedServerNode = mongoExplorerPanel.getSelectedServerNode();
+        event.getPresentation().setVisible(selectedServerNode != null);
+        if (selectedServerNode == null) {
+            return;
+        }
+        MongoServer mongoServer = (MongoServer) selectedServerNode.getUserObject();
+        boolean isLoading = MongoServer.Status.LOADING.equals(mongoServer.getStatus());
+        event.getPresentation().setEnabled(!isLoading);
+
+        boolean isConnected = selectedServerNode.getChildCount() > 0;
+        event.getPresentation().setIcon(isConnected ? REFRESH_ICON  : CONNECT_ICON);
+        event.getPresentation().setText(isConnected ? REFRESH_TEXT : CONNECT_TEXT);
     }
 }

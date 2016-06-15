@@ -64,7 +64,7 @@ class MongoServerTableModel extends AbstractTableModel implements ItemRemovable 
                 return configuration.getLabel();
             }
             case 1: { // "URL" column
-                return configuration.getUrl();
+                return configuration.getUrlsInSingleString();
             }
             case 2: { // "Autoconnect" column
                 return configuration.isConnectOnIdeStartup();
@@ -83,7 +83,7 @@ class MongoServerTableModel extends AbstractTableModel implements ItemRemovable 
                 break;
             }
             case 1: {
-                //do nothing url is computed from serverName and serverPort
+                //do nothing url = serverHosts
                 break;
             }
             case 2: {
